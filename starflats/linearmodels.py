@@ -21,20 +21,22 @@ TODO
 """
 
 import copy
-
 import logging
 
 from scipy import sparse
 import numpy as np
+
 try:
     from sksparse.cholmod import cholesky_AAt, cholesky
 except ImportError:
     from scikits.sparse.cholmod import cholesky_AAt, cholesky
-from saunerie.indextools import make_index
-from .robuststat import binned_curve, polyfit
-from .fitparameters import FitParameters, structarray
-import saunerie.selinv
-        
+
+from robuststat import binned_curve, polyfit
+from fitparameters import FitParameters, structarray
+from indextools import make_index
+import selinv
+
+
 class SparseSystem(object):
     def __init__(self, A, b, **keys):
         self.b = b
@@ -151,7 +153,7 @@ class SparseLocalGlobalSystem(object):
         # performances because cholmod metis ordering is typically
         # better than the default MMD ordering included in selinv.
         Adiag = self.D
-        return saunerie.selinv.selinv(self.S, self.Mfact.P())
+        return selinv.selinv(self.S, self.Mfact.P())
 
         
 class RobustLinearSolver(object):
@@ -442,7 +444,7 @@ class RobustLinearSolver(object):
         # reusing the reordering is easy and is important for
         # performances because cholmod metis ordering is typically
         # better than the default MMD ordering included in selinv.
-        return saunerie.selinv.selinv(M.T * M, self.system.factor.P())
+        return selinv.selinv(M.T * M, self.system.factor.P())
     
     def diagnostic_plot(self, disperse=[],deg=2, pbins=None, nbins=10, data=False, keep_outliers=False, win=1):
         """ Plot the distribution of residuals.
