@@ -3,11 +3,13 @@
 import argparse
 import pathlib
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from astropy.time import Time
 
 from utils import ztffiltercodes
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="Extract relevant starflat measure fields from measurement datasets.")
@@ -15,6 +17,8 @@ if __name__ == '__main__':
     argparser.add_argument('--output', type=pathlib.Path, required=True)
     argparser.add_argument('--year', type=int)
     argparser.add_argument('--filtercode', type=str, choices=ztffiltercodes+['all'], default='all')
+    argparser.add_argument('--min-measure-count', type=int, default=10)
+    argparser.add_argument('--max-g-mag', type=float, default=18.)
 
     args = argparser.parse_args()
     args.dataset_path = args.dataset_path.expanduser().resolve()
@@ -32,7 +36,6 @@ if __name__ == '__main__':
     dataset_list = []
     print("Loading datasets from {}, in band {}".format(args.dataset_path, filtercode))
     for dataset_path in dataset_paths:
-        print("Loading dataset from {}".format(dataset_path.name))
         columns_to_extract = ['gaia_Source', 'psf_x', 'psf_y', 'gaia_RA_ICRS', 'gaia_DE_ICRS', 'psf_flux', 'psf_eflux', 'gaia_Gmag', 'gaia_BPmag', 'gaia_RPmag', 'gaia_e_Gmag', 'gaia_e_BPmag', 'gaia_e_RPmag',
                               'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing']
         [columns_to_extract.extend(['aper_apfl{}'.format(i), 'aper_eapfl{}'.format(i), 'aper_rad{}'.format(i)]) for i in range(10)]
@@ -52,11 +55,31 @@ if __name__ == '__main__':
                            'gaia_e_BPmag': 'eBP'}, inplace=True)
         [df.rename(columns={'aper_apfl{}'.format(i): 'apfl{}'.format(i), 'aper_eapfl{}'.format(i): 'eapfl{}'.format(i), 'aper_rad{}'.format(i): 'rad{}'.format(i)}, inplace=True) for i in range(10)]
 
+        s = len(df)
+        df = df.loc[df['G']<=args.max_g_mag]
+
+        print("Loading dataset from {} - removed {} measures having Gmag > Gmax - left total={}".format(dataset_path.name, s - len(df), len(df)))
         # TODO: ra, dec in ICRS epoch, need to translate to mjd of current exposures
 
         dataset_list.append(df)
 
     dataset_df = pd.concat(dataset_list, ignore_index=True)
+
+    print("Removing stars that have less than {} measures...".format(args.min_measure_count))
+    s = len(dataset_df)
+    to_remove_mask = np.array([False]*len(dataset_df))
+    gaiaids = list(set(df['gaiaid'].astype(int)))
+    for i, gaiaid in enumerate(gaiaids):
+        if i%100 == 0:
+            print(".", end="", flush=True)
+
+        gaiaid_mask = np.array(dataset_df['gaiaid'].astype(int).to_numpy() == gaiaid)
+        if len(dataset_df.loc[gaiaid_mask]) < args.min_measure_count:
+            to_remove_mask = np.any([to_remove_mask, gaiaid_mask], axis=0)
+    s = len(dataset_df)
+    dataset_df = dataset_df.iloc[~to_remove_mask]
+    print("")
+    print(" Removed {} measures.".format(s-len(dataset_df)))
 
     # Detect starflat nights
     unique_night_mjds = list(set(dataset_df['mjd'].astype(int)))
