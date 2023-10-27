@@ -6,9 +6,11 @@ from yaml import load, Loader
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 
 from linearmodels import RobustLinearSolver
 from dataproxy import DataProxy
+from utils import binplot
 
 photometry_choices = ['psf']
 
@@ -48,7 +50,9 @@ class StarflatModel:
     def model_math():
         raise NotImplementedError
 
-    def plot(self, outputpath):
+    def plot(self, output_path):
+        wres = self.res/np.sqrt(self.dp.emag**2+self.config['piedestal']**2)
+
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("Residual plot wrt $G$ magnitude\nModel: {}".format(self.model_math()))
         plt.plot(self.dp.G[~self.bads], self.res[~self.bads], ',')
@@ -56,6 +60,36 @@ class StarflatModel:
         plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
         plt.ylim(-0.75, 0.75)
         plt.grid()
+        plt.tight_layout()
+        plt.savefig(output_path.joinpath("residuals_mag.png"), dpi=300.)
+        plt.close()
+
+        plt.subplots(nrows=2, ncols=2, figsize=(10., 6.), gridspec_kw={'width_ratios': [5., 1.5], 'hspace': 0., 'wspace': 0.}, sharex=False, sharey=False)
+        plt.suptitle("Standardized residuals\npiedestal={}".format(self.config['piedestal']))
+        plt.subplot(2, 2, 1)
+        xbinned_mag, yplot_stdres, stdres_dispersion = binplot(self.dp.G[~self.bads], wres[~self.bads], data=False, scale=False, nbins=5)
+        plt.plot(self.dp.G[~self.bads], wres[~self.bads], ',', color='xkcd:light blue')
+        plt.ylabel("$\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}$ [mag]")
+        plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
+        plt.grid()
+        plt.subplot(2, 2, 2)
+        plt.hist(wres, bins='auto', orientation='horizontal', density=True)
+        m, s = norm.fit(wres[~self.bads])
+        x = np.linspace(np.min(wres[~self.bads])-0.5, np.max(wres[~self.bads])+0.5)
+        plt.plot(norm.pdf(x, loc=m, scale=s), x, label="$\sim\mathcal{{N}}(\mu={:.2f}, \sigma={:.2f})$".format(m, s))
+        plt.plot(norm.pdf(x, loc=0., scale=1.), x, label="$\sim\mathcal{N}(\mu=0, \sigma=1)$")
+        plt.legend()
+        plt.axis('off')
+        plt.subplot(2, 2, 3)
+        plt.plot(xbinned_mag, stdres_dispersion)
+        plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
+        plt.xlabel("$m_\mathrm{G}$ [AB mag]")
+        plt.ylabel("$\\sigma_{\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}}$ [mag]")
+        plt.axhline(1.)
+        plt.grid()
+        plt.subplot(2, 2, 4)
+        plt.axis('off')
+        plt.tight_layout()
         plt.show()
         plt.close()
 
@@ -66,7 +100,8 @@ class StarflatModel:
         plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
         plt.ylim(-0.75, 0.75)
         plt.grid()
-        plt.show()
+        plt.tight_layout()
+        plt.savefig(output_path.joinpath("residuals_color.png"), dpi=300.)
         plt.close()
 
         plt.subplots(figsize=(12., 5.))
@@ -76,7 +111,8 @@ class StarflatModel:
         plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
         plt.ylim(-0.75, 0.75)
         plt.grid()
-        plt.show()
+        plt.tight_layout()
+        plt.savefig(output_path.joinpath("residuals_mjd.png"), dpi=300.)
         plt.close()
 
     def solve(self):
@@ -88,7 +124,7 @@ class StarflatModel:
         self.bads = solver.bads
         self.res = solver.get_res(self.dp.mag)
         # self.cov = solver.get_cov()
-        self.cov = None # Getting cov matrix leads to a crash
+        self.cov = None # Getting cov matrix leads to crash
 
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:
