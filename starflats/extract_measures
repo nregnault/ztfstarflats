@@ -16,7 +16,7 @@ if __name__ == '__main__':
     argparser.add_argument('--dataset-path', type=pathlib.Path, required=True)
     argparser.add_argument('--output', type=pathlib.Path, required=True)
     argparser.add_argument('--year', type=int)
-    argparser.add_argument('--filtercode', type=str, choices=ztffiltercodes+['all'], default='all')
+    argparser.add_argument('--filtercode', type=str, choices=ztffiltercodes)
     argparser.add_argument('--min-measure-count', type=int, default=10)
     argparser.add_argument('--max-g-mag', type=float, default=18.)
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     else:
         filtercodes = [args.filtercode]
 
-    filtercode = 'zg'
+    filtercode = args.filtercode
     # First retrieve relevant datasets
     dataset_paths = list(args.dataset_path.glob("measures_{}_*-{}-*.parquet".format(args.year, filtercode)))
 
