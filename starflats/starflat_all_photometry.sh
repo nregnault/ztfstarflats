@@ -5,7 +5,7 @@
 # $3 output folder
 
 echo "PSF photometry"
-# bash starflat_all_models.sh $1 $2 $3 "psf"
+bash starflat_all_models.sh $1 $2 $3 "psf"
 
 echo "Aper4 photometry"
 bash starflat_all_models.sh $1 $2 $3 "apfl4"
