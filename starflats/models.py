@@ -12,11 +12,12 @@ from linearmodels import RobustLinearSolver
 from dataproxy import DataProxy
 from utils import binplot
 
-photometry_choices = ['psf']
+photometry_choices = ['psf'] + ['apfl{}'.format(i) for i in range(10)]
 
 photometry_choice_to_key = {'psf': 'psfflux'}
+photometry_choice_to_key.update(dict([('apfl{}'.format(i), 'apfl{}'.format(i)) for i in range(10)]))
 photometry_error_choice_to_key = {'psf': 'epsfflux'}
-
+photometry_error_choice_to_key.update(dict([('apfl{}'.format(i), 'eapfl{}'.format(i)) for i in range(10)]))
 
 class StarflatModel:
     def __init__(self, config_path, dataset_path):
@@ -29,15 +30,45 @@ class StarflatModel:
         photo_err_key = photometry_error_choice_to_key[self.__config['photometry']]
 
         df = pd.read_parquet(dataset_path)
+
+        measure_count = len(df)
+        df = df.loc[df[photo_key]>0.]
+        print("Removed {} negative measures".format(measure_count-len(df)))
+        print("Measure count={}".format(len(df)))
+
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
 
+        df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
+        df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
+
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)
+        self.__dataset_name = dataset_path.stem
 
     @property
     def config(self):
         return self.__config
+
+    @property
+    def dataset_name(self):
+        return self.__dataset_name
+
+    @property
+    def wres(self):
+        return self.res/self.measure_errors
+
+    @property
+    def ndof_full(self):
+        return len(self.dp.nt) - len(self.fitted_params.full)
+
+    @property
+    def ndof(self):
+        return len(self.dp) - len(self.fitted_params.full) - sum(self.bads)
+
+    @property
+    def measure_errors(self):
+        return np.sqrt(self.dp.emag**2+self.config['piedestal']**2)
 
     def build_model(self):
         raise NotImplementedError
@@ -51,7 +82,7 @@ class StarflatModel:
         raise NotImplementedError
 
     def plot(self, output_path):
-        wres = self.res/np.sqrt(self.dp.emag**2+self.config['piedestal']**2)
+        wres = self.wres
 
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("Residual plot wrt $G$ magnitude\nModel: {}".format(self.model_math()))
@@ -90,7 +121,7 @@ class StarflatModel:
         plt.subplot(2, 2, 4)
         plt.axis('off')
         plt.tight_layout()
-        plt.show()
+        plt.savefig(output_path.joinpath("pull.png"))
         plt.close()
 
         plt.subplots(figsize=(12., 5.))
@@ -117,18 +148,30 @@ class StarflatModel:
 
     def solve(self):
         model = self.build_model()
-        solver = RobustLinearSolver(model, self.dp.mag, weights=1./np.sqrt(self.dp.emag**2+self.config['piedestal']**2))
+        solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
         solver.model.params.free = solver.robust_solution(local_param='m')
 
         self.fitted_params = solver.model.params
         self.bads = solver.bads
         self.res = solver.get_res(self.dp.mag)
-        # self.cov = solver.get_cov()
-        self.cov = None # Getting cov matrix leads to crash
+        # self.cov = solver.get_cov() # Getting cov matrix leads to crash
+        # self.diag_cov = solver.get_diag_cov()
+        self.cov = None
+        self.diag_cov = None
 
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:
             pickle.dump({'fitted_params': self.fitted_params, 'bads': self.bads, 'res': self.res, 'cov': self.cov}, f)
+
+    def dump_stats(self, output_path):
+        d = {}
+        d['photometry'] = self.config['photometry']
+        d['zp_superpixel_res'] = self.config['']
+        d['measure_count'] = len(self.dp.nt)
+        d['bads_count'] = sum(self.bads)
+        d['chi2'] = self.chi2.item()
+        d['ndof'] = self.ndof.item()
+        d['chi2_ndof'] = (self.chi2/self.ndof).item()
 
     def load_result(self, result_path):
         with open(result_path, 'rb') as f:
@@ -138,6 +181,9 @@ class StarflatModel:
         self.bads = d['bads']
         self.res = d['res']
         self.cov = d['cov']
+
+        self.chi2 = np.sum(self.wres[~self.bads]**2).item()
+
 
 
 Models = {}

@@ -3,4 +3,6 @@
 import models
 
 import simple_starflat_model
-import starflat_color_model
+import zp_starflat_model
+import color_starflat_model
+import full_starflat_model

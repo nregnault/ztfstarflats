@@ -236,7 +236,7 @@ class SuperpixelizedZTFFocalPlan:
 
         def _plot(ax, val, ccdid, qid, rcid):
             if val is not None:
-                ax.imshow(val.reshape(self.__resolution, self.__resolution), origin='lower', vmin=vmin, vmax=vmax, cmap=cmap)
+                ax.imshow(np.flip(np.flip(val.reshape(self.__resolution, self.__resolution), axis=1), axis=0), origin='lower', vmin=vmin, vmax=vmax, cmap=cmap)
                 ax.set(xticks=[], yticks=[])
                 ax.set_aspect('auto')
 
