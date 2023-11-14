@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+import argparse
+import pathlib
+
+from models import Models
+import register_models
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(description="Simple delta ZP starflat fit")
+    argparser.add_argument('--dataset-path', type=pathlib.Path)
+    argparser.add_argument('--config-path', type=pathlib.Path)
+    argparser.add_argument('--output-path', type=pathlib.Path)
+    argparser.add_argument('--model', type=str, choices=list(Models.keys()))
+    argparser.add_argument('--list-models', action='store_true')
+    argparser.add_argument('--plot', action='store_true')
+    argparser.add_argument('--solve', action='store_true')
+
+    args = argparser.parse_args()
+
+    if args.list_models:
+        for model in Models.keys():
+            print(model)
+            print(Models[model].model_desc())
+            print(Models[model].model_math())
+
+        exit()
+
+    args.dataset_path = args.dataset_path.expanduser().resolve()
+    args.output_path = args.output_path.expanduser().resolve()
+    args.config_path = args.config_path.expanduser().resolve()
+
+    model = Models[args.model](args.config_path, args.dataset_path)
+
+    if args.solve:
+        print("Solving model...")
+        model.solve()
+        print("Saving...")
+        model.dump_result(args.output_path.joinpath("model.pickle"))
+
+    if args.plot:
+        print("Plotting...")
+        model.load_result(args.output_path.joinpath("model.pickle"))
+        model.plot(args.output_path)
