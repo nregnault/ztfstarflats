@@ -66,20 +66,20 @@ if __name__ == '__main__':
     dataset_df = pd.concat(dataset_list, ignore_index=True)
 
     print("Removing stars that have less than {} measures...".format(args.min_measure_count))
-    s = len(dataset_df)
-    to_remove_mask = np.array([False]*len(dataset_df))
-    gaiaids = list(set(df['gaiaid'].astype(int)))
-    for i, gaiaid in enumerate(gaiaids):
-        if i%100 == 0:
-            print(".", end="", flush=True)
+    # s = len(dataset_df)
+    # to_remove_mask = np.array([False]*len(dataset_df))
+    # gaiaids = list(set(df['gaiaid'].astype(int)))
+    # for i, gaiaid in enumerate(gaiaids):
+    #     if i%100 == 0:
+    #         print(".", end="", flush=True)
 
-        gaiaid_mask = np.array(dataset_df['gaiaid'].astype(int).to_numpy() == gaiaid)
-        if len(dataset_df.loc[gaiaid_mask]) < args.min_measure_count:
-            to_remove_mask = np.any([to_remove_mask, gaiaid_mask], axis=0)
-    s = len(dataset_df)
-    dataset_df = dataset_df.iloc[~to_remove_mask]
-    print("")
-    print(" Removed {} measures.".format(s-len(dataset_df)))
+    #     gaiaid_mask = np.array(dataset_df['gaiaid'].astype(int).to_numpy() == gaiaid)
+    #     if len(dataset_df.loc[gaiaid_mask]) < args.min_measure_count:
+    #         to_remove_mask = np.any([to_remove_mask, gaiaid_mask], axis=0)
+    # s = len(dataset_df)
+    # dataset_df = dataset_df.iloc[~to_remove_mask]
+    # print("")
+    # print(" Removed {} measures.".format(s-len(dataset_df)))
 
     # Detect starflat nights
     unique_night_mjds = list(set(dataset_df['mjd'].astype(int)))

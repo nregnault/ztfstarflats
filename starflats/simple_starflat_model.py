@@ -11,12 +11,17 @@ class SimpleStarflatModel(models.StarflatModel):
     def __init__(self, config_path, dataset_path):
         super().__init__(config_path, dataset_path)
 
+        self.config['zp_resolution'] = 25
         self.superpixels = SuperpixelizedZTFFocalPlan(self.config['zp_resolution'])
         self.dp.add_field('dzp', self.superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
         self.dp.make_index('gaiaid')
         self.dp.make_index('dzp')
         self.dp.make_index('qid')
         self.dp.make_index('ccdid')
+
+        bc = np.bincount(self.dp.dzp_index)
+        print(np.mean(bc), np.median(bc))
+        print(any((np.bincount(self.dp.dzp_index)==0).tolist()))
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp')
