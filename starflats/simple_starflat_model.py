@@ -20,8 +20,6 @@ class SimpleStarflatModel(models.StarflatModel):
         self.dp.make_index('ccdid')
 
         bc = np.bincount(self.dp.dzp_index)
-        print(np.mean(bc), np.median(bc))
-        print(any((np.bincount(self.dp.dzp_index)==0).tolist()))
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp')

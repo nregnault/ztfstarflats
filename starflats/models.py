@@ -84,6 +84,18 @@ class StarflatModel:
     def plot(self, output_path):
         wres = self.wres
 
+        # Plot dithering pattern
+        plt.subplots(figsize=(8., 8.))
+        plt.suptitle("Dithering pattern - {}\n{}".format(self.config['photometry'], self.dataset_name))
+        mask = (self.dp.gaiaid_index == np.argmax(np.bincount(self.dp.gaiaid_index)))
+        plt.plot(self.dp.x[mask], self.dp.y[mask], '.')
+        plt.grid()
+        plt.axis('equal')
+        plt.xlabel("$x$ [pixel]")
+        plt.ylabel("$y$ [pixel]")
+        plt.savefig(output_path.joinpath("dithering.png"), dpi=300.)
+        plt.close()
+
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("Residual plot wrt $G$ magnitude\nModel: {}".format(self.model_math()))
         plt.plot(self.dp.G[~self.bads], self.res[~self.bads], ',')
