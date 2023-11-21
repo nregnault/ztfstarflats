@@ -16,6 +16,7 @@ gaiarefmjd = Time(2015.5, format='byear').mjd
 quadrant_width_px, quadrant_height_px = 3072, 3080
 quadrant_size_px = {'x': quadrant_width_px, 'y': quadrant_height_px}
 
+idx2markerstyle = ['*', 'x', '.', 'v', '^']
 
 def radectoaltaz(ra, dec, lat, lon, jd):
     """
@@ -208,6 +209,7 @@ class SuperpixelizedZTFFocalPlan:
 
         return self.__resolution**2*(4*(ccdid-1)+qid)+iy*self.__resolution+ix
 
+    @property
     def vecsize(self):
         return 64*self.__resolution**2
 
@@ -232,6 +234,10 @@ class SuperpixelizedZTFFocalPlan:
             values = np.array([[focal_plane_dict[ccdid+1][qid] for qid in range(4)] for ccdid in range(16)]).flatten()
             vmax = 5.*median_abs_deviation(values)
             vmin = -5.*median_abs_deviation(values)
+        elif vlim == 'mad_positive':
+            values = np.array([[focal_plane_dict[ccdid+1][qid] for qid in range(4)] for ccdid in range(16)]).flatten()
+            vmax = 8*median_abs_deviation(values)
+            vmin = 0.
         else:
             vmin, vmax = vlim
 

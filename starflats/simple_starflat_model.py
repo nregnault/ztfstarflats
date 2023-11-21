@@ -11,7 +11,6 @@ class SimpleStarflatModel(models.StarflatModel):
     def __init__(self, config_path, dataset_path):
         super().__init__(config_path, dataset_path)
 
-        self.config['zp_resolution'] = 25
         self.superpixels = SuperpixelizedZTFFocalPlan(self.config['zp_resolution'])
         self.dp.add_field('dzp', self.superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
         self.dp.make_index('gaiaid')
@@ -40,7 +39,7 @@ class SimpleStarflatModel(models.StarflatModel):
         chi2_ndof = np.sum(self.wres[~self.bads]**2)/self.ndof
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
-        plt.suptitle("$\delta ZP(u, v) - {}$\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
+        plt.suptitle("$\delta ZP(u, v)$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
         self.superpixels.plot(fig, self.fitted_params['dzp'].full, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("dzp.png"))
         plt.close()
@@ -50,6 +49,26 @@ class SimpleStarflatModel(models.StarflatModel):
         self.superpixels.plot(fig, np.bincount(self.dp.dzp_index), cbar_label="Measure count")
         plt.savefig(output_path.joinpath("superpixel_count.png"), dpi=300.)
         plt.close()
+
+        wres_dzp = np.bincount(self.dp.dzp_index, weights=self.wres**2, minlength=self.superpixels.vecsize)/np.bincount(self.dp.dzp_index, minlength=self.superpixels.vecsize)
+
+        fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
+        plt.suptitle("Stacked $\chi^2$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
+        self.superpixels.plot(fig, wres_dzp, vlim='mad_positive')
+        plt.savefig(output_path.joinpath("chi2_superpixels.png"))
+        plt.close()
+
+        # for mjd in self.dp.mjd_map.keys():
+        #     mjd_index = self.dp.mjd_map[mjd]
+        #     mask = (self.dp.mjd_index == mjd_index)
+        #     wres_dzp = np.bincount(self.dp.dzp_index[mask], weights=self.wres[mask]**2, minlength=self.superpixels.vecsize)/np.bincount(self.dp.dzp_index[mask], minlength=self.superpixels.vecsize)
+
+        #     fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
+        #     plt.suptitle("Stacked $\chi^2$ - {} - MJD={}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, mjd, self.model_math(), chi2_ndof))
+        #     self.superpixels.plot(fig, wres_dzp, vlim='mad_positive')
+        #     plt.show()
+        #     # plt.savefig(output_path.joinpath("chi2_superpixels.png"))
+        #     plt.close()
 
 
 models.register_model('simple', SimpleStarflatModel)
