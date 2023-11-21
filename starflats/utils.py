@@ -10,6 +10,7 @@ from matplotlib.colors import Normalize
 import erfa
 from indextools import make_index
 
+
 ztffiltercodes = ['zg', 'zr', 'zi']
 gaiarefmjd = Time(2015.5, format='byear').mjd
 quadrant_width_px, quadrant_height_px = 3072, 3080
@@ -287,3 +288,9 @@ def plot_ztf_focal_plane(fig, focal_plane_dict, plot_fun, plot_ccdid=False):
         ax.spines.right.set_visible(ss.is_last_col())
         ax.spines.right.set(linewidth=1.)
 
+
+def make_index_from_array(array):
+    s = np.array(list(set(array)))
+    m = dict(list(zip(s, list(range(len(s))))))
+    indices = np.fromiter((m[e] for e in array), 'int')
+    return m, indices
