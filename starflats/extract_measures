@@ -17,7 +17,7 @@ if __name__ == '__main__':
     argparser.add_argument('--output', type=pathlib.Path, required=True)
     argparser.add_argument('--year', type=int)
     argparser.add_argument('--filtercode', type=str, choices=ztffiltercodes)
-    argparser.add_argument('--min-measure-count', type=int, default=10)
+    argparser.add_argument('--min-measure-count', type=int, default=5)
     argparser.add_argument('--max-g-mag', type=float, default=18.)
 
     args = argparser.parse_args()
@@ -33,41 +33,37 @@ if __name__ == '__main__':
     # First retrieve relevant datasets
     dataset_paths = list(args.dataset_path.glob("measures_{}_*-{}-*.parquet".format(args.year, filtercode)))
 
-    if not pathlib.Path("out.parquet").exists():
-        dataset_list = []
-        print("Loading datasets from {}, in band {}".format(args.dataset_path, filtercode))
-        for dataset_path in dataset_paths:
-            columns_to_extract = ['gaia_Source', 'psf_x', 'psf_y', 'gaia_RA_ICRS', 'gaia_DE_ICRS', 'psf_flux', 'psf_eflux', 'gaia_Gmag', 'gaia_BPmag', 'gaia_RPmag', 'gaia_e_Gmag', 'gaia_e_BPmag', 'gaia_e_RPmag',
-                                'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing']
-            [columns_to_extract.extend(['aper_apfl{}'.format(i), 'aper_eapfl{}'.format(i), 'aper_rad{}'.format(i)]) for i in range(10)]
-            df = pd.read_parquet(dataset_path, columns=columns_to_extract)
-            df.rename(columns={'gaia_Source': 'gaiaid',
-                            'psf_x': 'x',
-                            'psf_y': 'y',
-                            'gaia_RA_ICRS': 'ra',
-                            'gaia_DE_ICRS': 'dec',
-                            'psf_flux': 'psfflux',
-                            'psf_eflux': 'epsfflux',
-                            'gaia_Gmag': 'G',
-                            'gaia_BPmag': 'BP',
-                            'gaia_RPmag': 'RP',
-                            'gaia_e_Gmag': 'eG',
-                            'gaia_e_RPmag': 'eRP',
-                            'gaia_e_BPmag': 'eBP'}, inplace=True)
-            [df.rename(columns={'aper_apfl{}'.format(i): 'apfl{}'.format(i), 'aper_eapfl{}'.format(i): 'eapfl{}'.format(i), 'aper_rad{}'.format(i): 'rad{}'.format(i)}, inplace=True) for i in range(10)]
+    dataset_list = []
+    print("Loading datasets from {}, in band {}".format(args.dataset_path, filtercode))
+    for dataset_path in dataset_paths:
+        columns_to_extract = ['gaia_Source', 'psf_x', 'psf_y', 'gaia_RA_ICRS', 'gaia_DE_ICRS', 'psf_flux', 'psf_eflux', 'gaia_Gmag', 'gaia_BPmag', 'gaia_RPmag', 'gaia_e_Gmag', 'gaia_e_BPmag', 'gaia_e_RPmag',
+                            'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing']
+        [columns_to_extract.extend(['aper_apfl{}'.format(i), 'aper_eapfl{}'.format(i), 'aper_rad{}'.format(i)]) for i in range(10)]
+        df = pd.read_parquet(dataset_path, columns=columns_to_extract)
+        df.rename(columns={'gaia_Source': 'gaiaid',
+                        'psf_x': 'x',
+                        'psf_y': 'y',
+                        'gaia_RA_ICRS': 'ra',
+                        'gaia_DE_ICRS': 'dec',
+                        'psf_flux': 'psfflux',
+                        'psf_eflux': 'epsfflux',
+                        'gaia_Gmag': 'G',
+                        'gaia_BPmag': 'BP',
+                        'gaia_RPmag': 'RP',
+                        'gaia_e_Gmag': 'eG',
+                        'gaia_e_RPmag': 'eRP',
+                        'gaia_e_BPmag': 'eBP'}, inplace=True)
+        [df.rename(columns={'aper_apfl{}'.format(i): 'apfl{}'.format(i), 'aper_eapfl{}'.format(i): 'eapfl{}'.format(i), 'aper_rad{}'.format(i): 'rad{}'.format(i)}, inplace=True) for i in range(10)]
 
-            s = len(df)
-            df = df.loc[df['G']<=args.max_g_mag]
+        s = len(df)
+        df = df.loc[df['G']<=args.max_g_mag]
 
-            print("Loading dataset from {} - removed {} measures having Gmag > Gmax - left total={}".format(dataset_path.name, s - len(df), len(df)))
-            # TODO: ra, dec in ICRS epoch, need to translate to mjd of current exposures
+        print("Loading dataset from {} - removed {} measures having Gmag > Gmax - left total={}".format(dataset_path.name, s - len(df), len(df)))
+        # TODO: ra, dec in ICRS epoch, need to translate to mjd of current exposures
 
-            dataset_list.append(df)
+        dataset_list.append(df)
 
-        dataset_df = pd.concat(dataset_list, ignore_index=True)
-        dataset_df.to_parquet("out.parquet")
-    else:
-        dataset_df = pd.read_parquet("out.parquet")
+    dataset_df = pd.concat(dataset_list, ignore_index=True)
 
     print("{} measures found.".format(len(dataset_df)))
     print("Removing stars that have less than {} measures...".format(args.min_measure_count))
