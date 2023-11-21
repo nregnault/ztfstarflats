@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+from ztfquery.fields import ccdid_qid_to_rcid
 
 from linearmodels import RobustLinearSolver
 from dataproxy import DataProxy
-from utils import binplot
+from utils import binplot, idx2markerstyle
 
 photometry_choices = ['psf'] + ['apfl{}'.format(i) for i in range(10)]
 
@@ -38,6 +39,8 @@ class StarflatModel:
 
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
+
+        df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
 
         df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
         df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
@@ -86,10 +89,16 @@ class StarflatModel:
 
         # Plot dithering pattern
         plt.subplots(figsize=(8., 8.))
-        plt.suptitle("Dithering pattern - {}\n{}".format(self.config['photometry'], self.dataset_name))
+        plt.suptitle("Dithering pattern - {}\n {}".format(self.config['photometry'], self.dataset_name))
         mask = (self.dp.gaiaid_index == np.argmax(np.bincount(self.dp.gaiaid_index)))
-        plt.plot(self.dp.x[mask], self.dp.y[mask], '.')
+        rcids = list(set(self.dp.rcid[mask]))
+
+        for i, rcid in enumerate(rcids):
+            rcid_mask = (self.dp.rcid[mask] == rcid)
+            plt.plot(self.dp.x[mask][rcid_mask], self.dp.y[mask][rcid_mask], idx2markerstyle[i], label=rcid)
+
         plt.grid()
+        plt.legend()
         plt.axis('equal')
         plt.xlabel("$x$ [pixel]")
         plt.ylabel("$y$ [pixel]")
@@ -107,22 +116,27 @@ class StarflatModel:
         plt.savefig(output_path.joinpath("residuals_mag.png"), dpi=300.)
         plt.close()
 
+        # Standardized residuals
         plt.subplots(nrows=2, ncols=2, figsize=(10., 6.), gridspec_kw={'width_ratios': [5., 1.5], 'hspace': 0., 'wspace': 0.}, sharex=False, sharey=False)
         plt.suptitle("Standardized residuals\npiedestal={}".format(self.config['piedestal']))
+
         plt.subplot(2, 2, 1)
         xbinned_mag, yplot_stdres, stdres_dispersion = binplot(self.dp.G[~self.bads], wres[~self.bads], data=False, scale=False, nbins=5)
         plt.plot(self.dp.G[~self.bads], wres[~self.bads], ',', color='xkcd:light blue')
         plt.ylabel("$\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}$ [mag]")
         plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
         plt.grid()
+
         plt.subplot(2, 2, 2)
-        plt.hist(wres, bins='auto', orientation='horizontal', density=True)
+        xmin, xmax = np.min(wres[~self.bads])-0.5, np.max(wres[~self.bads])+0.5
+        plt.hist(wres, bins='auto', orientation='horizontal', density=True, range=[xmin, xmax])
         m, s = norm.fit(wres[~self.bads])
-        x = np.linspace(np.min(wres[~self.bads])-0.5, np.max(wres[~self.bads])+0.5)
+        x = np.linspace(xmin, xmax)
         plt.plot(norm.pdf(x, loc=m, scale=s), x, label="$\sim\mathcal{{N}}(\mu={:.2f}, \sigma={:.2f})$".format(m, s))
         plt.plot(norm.pdf(x, loc=0., scale=1.), x, label="$\sim\mathcal{N}(\mu=0, \sigma=1)$")
         plt.legend()
         plt.axis('off')
+
         plt.subplot(2, 2, 3)
         plt.plot(xbinned_mag, stdres_dispersion)
         plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
@@ -130,6 +144,7 @@ class StarflatModel:
         plt.ylabel("$\\sigma_{\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}}$ [mag]")
         plt.axhline(1.)
         plt.grid()
+
         plt.subplot(2, 2, 4)
         plt.axis('off')
         plt.tight_layout()
@@ -147,15 +162,19 @@ class StarflatModel:
         plt.savefig(output_path.joinpath("residuals_color.png"), dpi=300.)
         plt.close()
 
+
+        # Chi2 par exposure
+        chi2_day = np.bincount(self.dp.mjd_index[~self.bads], weights=self.wres[~self.bads]**2)/np.bincount(self.dp.mjd_index[~self.bads])
+        print(chi2_day)
         plt.subplots(figsize=(12., 5.))
-        plt.suptitle("Residual plot wrt MJD\nModel: {}".format(self.model_math()))
-        plt.plot(self.dp.mjd[~self.bads], self.res[~self.bads], ',')
+        plt.suptitle("$\chi^2/day$ \nModel: {}".format(self.model_math()))
+        plt.plot(list(self.dp.mjd_map.keys()), chi2_day, '.')
         plt.xlabel("MJD")
-        plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
-        plt.ylim(-0.75, 0.75)
+        plt.ylabel("$\chi^2/day$ [mag]")
         plt.grid()
         plt.tight_layout()
-        plt.savefig(output_path.joinpath("residuals_mjd.png"), dpi=300.)
+        plt.show()
+        # plt.savefig(output_path.joinpath("chi2_mjd.png"), dpi=300.)
         plt.close()
 
     def solve(self):
