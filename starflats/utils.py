@@ -16,7 +16,7 @@ gaiarefmjd = Time(2015.5, format='byear').mjd
 quadrant_width_px, quadrant_height_px = 3072, 3080
 quadrant_size_px = {'x': quadrant_width_px, 'y': quadrant_height_px}
 
-idx2markerstyle = ['*', 'x', '.', 'v', '^']
+idx2markerstyle = ['*', 'x', '.', 'v', '^', '<', '>', 'o', '1', '2', '3', '4', '8', 's', 'p', 'P', 'h', 'H', '+', 'D', 'd']
 
 def radectoaltaz(ra, dec, lat, lon, jd):
     """

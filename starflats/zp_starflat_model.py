@@ -14,8 +14,6 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
     def __init__(self, config_path, dataset_path):
         super().__init__(config_path, dataset_path)
 
-        self.dp.make_index('mjd')
-
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp')
         model.params['dzp'].fix(0, 0.)

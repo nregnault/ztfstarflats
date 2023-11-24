@@ -45,9 +45,21 @@ class StarflatModel:
         df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
         df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
 
+        # Remove potential outliers
+        measure_count = len(df)
+        df = df.loc[df['G']>10.]
+        df = df.loc[df['col']<5.]
+        df = df.loc[df['col']>-1.]
+        print("Removed {} potential outliers".format(measure_count-len(df)))
+
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)
         self.__dataset_name = dataset_path.stem
+
+        self.dp.make_index('qid')
+        self.dp.make_index('ccdid')
+        self.dp.make_index('mjd')
+        self.dp.make_index('gaiaid')
 
     @property
     def config(self):
@@ -93,6 +105,7 @@ class StarflatModel:
         mask = (self.dp.gaiaid_index == np.argmax(np.bincount(self.dp.gaiaid_index)))
         rcids = list(set(self.dp.rcid[mask]))
 
+        print(rcids)
         for i, rcid in enumerate(rcids):
             rcid_mask = (self.dp.rcid[mask] == rcid)
             plt.plot(self.dp.x[mask][rcid_mask], self.dp.y[mask][rcid_mask], idx2markerstyle[i], label=rcid)
@@ -165,7 +178,6 @@ class StarflatModel:
 
         # Chi2 par exposure
         chi2_day = np.bincount(self.dp.mjd_index[~self.bads], weights=self.wres[~self.bads]**2)/np.bincount(self.dp.mjd_index[~self.bads])
-        print(chi2_day)
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("$\chi^2/day$ \nModel: {}".format(self.model_math()))
         plt.plot(list(self.dp.mjd_map.keys()), chi2_day, '.')
@@ -178,6 +190,9 @@ class StarflatModel:
         plt.close()
 
     def solve(self):
+        pass
+
+    def _solve_cholesky(self):
         model = self.build_model()
         solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
         solver.model.params.free = solver.robust_solution(local_param='m')
@@ -189,6 +204,16 @@ class StarflatModel:
         # self.diag_cov = solver.get_diag_cov()
         self.cov = None
         self.diag_cov = None
+
+    def _solve_flip_flop(self):
+        model = self.build_model()
+        max_iter = 3
+        flip_fields = ['m']
+        flop_fields = list(model.params.keys())-flip_fields
+        print(flip_fields)
+        print(flop_fields)
+        for i in range(max_iter):
+            pass
 
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:

@@ -12,7 +12,7 @@ if __name__ == '__main__':
     argparser.add_argument('--config-path', type=pathlib.Path)
     argparser.add_argument('--output-path', type=pathlib.Path)
     argparser.add_argument('--run-path', type=pathlib.Path)
-    argparser.add_argument('--actions', type=str)
+    argparser.add_argument('--actions', type=str, default="")
     argparser.add_argument('--generate', action='store_true')
     argparser.add_argument('--schedule', action='store_true')
 
@@ -29,13 +29,14 @@ if __name__ == '__main__':
 
     # if args.actions != "":
     #     actions = args.actions.split(",")
-        # if any([~(action in all_actions) for action in actions]):
-        #     print("Unrecognised action in : {}".format(actions))
-        #     exit()
+    #     if any([~(action in all_actions) for action in actions]):
+    #         print("Unrecognised action in : {}".format(actions))
+    #         exit()
 
-        # print("Actions: {}".format(actions))
+    #     print("Actions: {}".format(actions))
 
-    dataset_paths = list(args.dataset_path.glob("*2022*.parquet"))
+    # dataset_paths = list(args.dataset_path.glob("*2022*.parquet"))
+    dataset_paths = list(args.dataset_path.glob("*.parquet"))
     print(dataset_paths)
     print("Found {} datasets".format(len(dataset_paths)))
 
@@ -63,7 +64,7 @@ starflat_all_photometry.sh {dataset_path} {config_path} {output_path}
                    "-o", args.run_path.joinpath("logs/log_{}".format(dataset_name)),
                    "-A", "ztf",
                    "-L", "sps",
-                   "--mem=20G",
+                   "--mem=14G",
                    "-t", "5-0",
                    args.run_path.joinpath("batches/{}.sh".format(dataset_name))]
 
