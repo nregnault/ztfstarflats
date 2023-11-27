@@ -17,9 +17,9 @@ class FullStarflatModel(ColorStarflatModel):
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp') + indic(self.dp.dk_index, val=self.dp.col, name='dk') + indic([0]*len(self.dp.nt), val=(self.dp.X-1), name='k')
-        model.params['dzp'].fix(0, 0.)
-        model.params['zp'].fix(0, 0.)
-        model.params['dk'].fix(0, 0.)
+        # model.params['dzp'].fix(0, 0.)
+        # model.params['zp'].fix(0, 0.)
+        # model.params['dk'].fix(0, 0.)
         return model
 
     @staticmethod
@@ -29,6 +29,9 @@ class FullStarflatModel(ColorStarflatModel):
     @staticmethod
     def model_math():
         return "$m_\mathrm{ADU}=m_s+\delta ZP(u, v) + ZP(mjd) + \delta k C_{Bp-Rp} + k(X(u, v)-1)$"
+
+    def fix_params(self, model):
+        super().fix_params(model)
 
     def plot(self, output_path):
         super().plot(output_path)

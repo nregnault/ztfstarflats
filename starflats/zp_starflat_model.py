@@ -16,8 +16,8 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp')
-        model.params['dzp'].fix(0, 0.)
-        model.params['zp'].fix(0, 0.)
+        # model.params['dzp'].fix(0, 0.)
+        # model.params['zp'].fix(0, 0.)
         return model
 
     @staticmethod
@@ -27,6 +27,10 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
     @staticmethod
     def model_math():
         return "$m_\mathrm{ADU}=m_s+\delta ZP(u, v) + ZP(mjd)$"
+
+    def fix_params(self, model):
+        super().fix_params(model)
+        model.params['zp'].fix(0, 0.)
 
     def plot(self, output_path):
         super().plot(output_path)

@@ -7,22 +7,23 @@ from models import Models
 import register_models
 
 if __name__ == '__main__':
-    argparser = argparse.ArgumentParser(description="Simple delta ZP starflat fit")
-    argparser.add_argument('--dataset-path', type=pathlib.Path)
-    argparser.add_argument('--config-path', type=pathlib.Path)
-    argparser.add_argument('--output-path', type=pathlib.Path)
-    argparser.add_argument('--model', type=str, choices=list(Models.keys()))
-    argparser.add_argument('--list-models', action='store_true')
-    argparser.add_argument('--plot', action='store_true')
-    argparser.add_argument('--solve', action='store_true')
+    argparser = argparse.ArgumentParser(description="Starflat model solver.")
+    argparser.add_argument('--dataset-path', type=pathlib.Path, help="Starflat sequence dataset path.")
+    argparser.add_argument('--config-path', type=pathlib.Path, help="Configuration file path.")
+    argparser.add_argument('--output-path', type=pathlib.Path, help="Output path where model solution and plot are saved.")
+    argparser.add_argument('--model', type=str, choices=list(Models.keys()), help="Model to solve.")
+    argparser.add_argument('--list-models', action='store_true', help="List all implemented models.")
+    argparser.add_argument('--plot', action='store_true', help="Generate control plots.")
+    argparser.add_argument('--solve', action='store_true', help="Solve the model.")
 
     args = argparser.parse_args()
 
     if args.list_models:
         for model in Models.keys():
-            print(model)
+            print("="*30 + " " + model + " " + "="*30)
             print(Models[model].model_desc())
             print(Models[model].model_math())
+            print("")
 
         exit()
 

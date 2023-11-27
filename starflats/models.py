@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pickle
+import time
 
 from yaml import load, Loader
 import numpy as np
@@ -96,6 +97,9 @@ class StarflatModel:
     def model_math():
         raise NotImplementedError
 
+    def fix_params(self):
+        raise NotImplementedError
+
     def plot(self, output_path):
         wres = self.wres
 
@@ -186,16 +190,22 @@ class StarflatModel:
         plt.grid()
         plt.tight_layout()
         plt.show()
-        # plt.savefig(output_path.joinpath("chi2_mjd.png"), dpi=300.)
+        plt.savefig(output_path.joinpath("chi2_mjd.png"), dpi=300.)
         plt.close()
 
     def solve(self):
-        pass
-
-    def _solve_cholesky(self):
+        method = self.__config['solve_method']
         model = self.build_model()
-        solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
-        solver.model.params.free = solver.robust_solution(local_param='m')
+
+
+        start_time = time.perf_counter()
+        if method == 'cholesky':
+            solver = self._solve_cholesky(model)
+        elif method == 'cholesky_flip_flop':
+            solver = self._solve_flip_flop(model)
+        else:
+            raise NotImplementedError("solve(): {} solve method not implemented!".format(method))
+        print("Elapsed time={}s".format(time.perf_counter()-start_time))
 
         self.fitted_params = solver.model.params
         self.bads = solver.bads
@@ -205,15 +215,57 @@ class StarflatModel:
         self.cov = None
         self.diag_cov = None
 
-    def _solve_flip_flop(self):
-        model = self.build_model()
-        max_iter = 3
+    def _solve_cholesky(self, model):
+        self.fix_params(model)
+        solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
+        solver.model.params.free = solver.robust_solution(local_param='m')
+        return solver
+
+    def _solve_flip_flop(self, model):
+        def _fix_params(model, params):
+            for param in params:
+                model.params[param].fix()
+
+        def _release_params(model, params):
+            for param in params:
+                model.params[param].release()
+
+        max_iter = self.__config['flip_flop_max_iter']
+        bads = None
+        local_param = None
+
+        fields = model.params.full.struct.slices.keys()
         flip_fields = ['m']
-        flop_fields = list(model.params.keys())-flip_fields
-        print(flip_fields)
-        print(flop_fields)
+        flop_fields = list(fields-flip_fields)
+
+        flip = False
         for i in range(max_iter):
-            pass
+            print("Iteration {}".format(i))
+            if flip:
+                params_to_flip = flop_fields
+                local_param = 'm'
+                flip = False
+            else:
+                params_to_flip = flip_fields
+                local_param = None
+                self.fix_params(model)
+                flip = True
+
+            print("Parameters to fix: {}".format(params_to_flip))
+
+            _fix_params(model, params_to_flip)
+            solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
+            solver.bads = bads
+            model.params.free = solver.robust_solution(local_param=local_param)
+            model.params[:].release()
+            bads = solver.bads
+
+        self.fix_params(model)
+        solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
+        solver.bads = bads
+        model.params.free = solver.robust_solution(local_param='m')
+
+        return solver
 
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:
