@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from ztfquery.fields import ccdid_qid_to_rcid
 
-from linearmodels import RobustLinearSolver
+from linearmodels import RobustLinearSolver, LinearModel
 from dataproxy import DataProxy
 from utils import binplot, idx2markerstyle
 
@@ -99,6 +99,9 @@ class StarflatModel:
 
     def fix_params(self):
         raise NotImplementedError
+
+    def eq_constraints(self):
+        return NotImplementedError
 
     def plot(self, output_path):
         wres = self.wres
@@ -189,39 +192,58 @@ class StarflatModel:
         plt.ylabel("$\chi^2/day$ [mag]")
         plt.grid()
         plt.tight_layout()
-        plt.show()
         plt.savefig(output_path.joinpath("chi2_mjd.png"), dpi=300.)
         plt.close()
 
     def solve(self):
         method = self.__config['solve_method']
         model = self.build_model()
+        y = self.dp.mag
+        weights = 1./self.measure_errors
+
+        if self.config['eq_constraints']:
+            constraints = self.eq_constraints(model)
+            rows, cols, vals = model.rows.tolist(), model.cols.tolist(), model.vals.tolist()
+            for constraint in constraints:
+                constraint_cols, constraint_val = constraint
+                rows.extend([max(rows)+1]*len(constraint_cols))
+                cols.extend(constraint_cols.tolist())
+                vals.extend([constraint_val]*len(constraint_cols))
+
+            model = LinearModel(rows, cols, vals, struct=model.struct)
+            y = np.concatenate([y, [0.]*len(constraints)])
+            weights = np.concatenate([weights, [1.]*len(constraints)])
 
 
         start_time = time.perf_counter()
         if method == 'cholesky':
-            solver = self._solve_cholesky(model)
+            solver = self._solve_cholesky(model, y, weights)
         elif method == 'cholesky_flip_flop':
-            solver = self._solve_flip_flop(model)
+            solver = self._solve_flip_flop(model, y, weights)
         else:
             raise NotImplementedError("solve(): {} solve method not implemented!".format(method))
         print("Elapsed time={}s".format(time.perf_counter()-start_time))
 
+        res = solver.get_res(y)
         self.fitted_params = solver.model.params
-        self.bads = solver.bads
-        self.res = solver.get_res(self.dp.mag)
+        self.bads = solver.bads[:len(self.dp.mag)]
+        self.res = res[:len(self.dp.mag)]
+
         # self.cov = solver.get_cov() # Getting cov matrix leads to crash
         # self.diag_cov = solver.get_diag_cov()
         self.cov = None
         self.diag_cov = None
+        if(self.config['eq_constraints']):
+            self.eq_constraints_res = res[-3:]
 
-    def _solve_cholesky(self, model):
-        self.fix_params(model)
-        solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
+    def _solve_cholesky(self, model, y, weights):
+        if not self.config['eq_constraints']:
+            self.fix_params(model)
+        solver = RobustLinearSolver(model, y, weights=weights)
         solver.model.params.free = solver.robust_solution(local_param='m')
         return solver
 
-    def _solve_flip_flop(self, model):
+    def _solve_flip_flop(self, model, y, weights):
         def _fix_params(model, params):
             for param in params:
                 model.params[param].fix()
@@ -298,4 +320,3 @@ Models = {}
 
 def register_model(name, model):
     Models[name] = model
-

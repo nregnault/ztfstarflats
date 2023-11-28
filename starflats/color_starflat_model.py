@@ -38,6 +38,12 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
         super().fix_params(model)
         model.params['dk'].fix(0, 0.)
 
+    def eq_constraints(self, model, mu=0.1):
+        constraints = super().eq_constraints(model, mu)
+        constraints.append([model.params['dk'].indexof(), mu])
+
+        return constraints
+
     def plot(self, output_path):
         super().plot(output_path)
 

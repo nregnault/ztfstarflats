@@ -33,6 +33,9 @@ class FullStarflatModel(ColorStarflatModel):
     def fix_params(self, model):
         super().fix_params(model)
 
+    def eq_constraints(self, model, mu=0.1):
+        return super().eq_constraints(model, mu)
+
     def plot(self, output_path):
         super().plot(output_path)
 

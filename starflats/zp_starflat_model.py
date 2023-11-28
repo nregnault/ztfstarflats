@@ -32,6 +32,12 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
         super().fix_params(model)
         model.params['zp'].fix(0, 0.)
 
+    def eq_constraints(self, model, mu=0.1):
+        constraints = super().eq_constraints(model)
+        constraints.append([model.params['dk'].indexof(), mu])
+
+        return constraints
+
     def plot(self, output_path):
         super().plot(output_path)
 
