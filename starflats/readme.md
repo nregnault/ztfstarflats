@@ -85,6 +85,7 @@ zp_resolution: 15
 color_resolution: 2
 solve_method: cholesky
 flip_flop_max_iter: 4
+eq_constraints: false
 ```
 
 Available photometry are `psf` and apperture `apflX` with `X` a number between 0 and 9 (smaller to bigger apperture).
