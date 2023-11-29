@@ -112,7 +112,6 @@ class StarflatModel:
         mask = (self.dp.gaiaid_index == np.argmax(np.bincount(self.dp.gaiaid_index)))
         rcids = list(set(self.dp.rcid[mask]))
 
-        print(rcids)
         for i, rcid in enumerate(rcids):
             rcid_mask = (self.dp.rcid[mask] == rcid)
             plt.plot(self.dp.x[mask][rcid_mask], self.dp.y[mask][rcid_mask], idx2markerstyle[i], label=rcid)
@@ -200,7 +199,7 @@ class StarflatModel:
         d['photometry'] = self.config['photometry']
         d['dataset_name'] = self.dataset_name
         d['piedestal'] = self.config['piedestal']
-        d['solve_method'] = self.config['solve_method']
+        d['solver'] = self.config['solver']
         d['exposure_count'] = len(self.dp.mjd_map)
         d['star_count'] = len(self.dp.gaiaid_map)
         d['measure_count'] = len(self.dp.nt)
@@ -218,7 +217,7 @@ class StarflatModel:
             dump(d, f)
 
     def solve(self):
-        method = self.__config['solve_method']
+        method = self.__config['solver']
         model = self.build_model()
         y = self.dp.mag
         weights = 1./self.measure_errors
