@@ -34,6 +34,10 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
     def model_math():
         return "$m_\mathrm{ADU}^{s,q}=m^s+\delta ZP(u, v) + ZP^q + \delta k(u, v) C_{Bp-Rp}^s$"
 
+    @staticmethod
+    def model_name():
+        return 'color'
+
     def fix_params(self, model):
         super().fix_params(model)
         model.params['dk'].fix(0, 0.)
@@ -61,4 +65,4 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
         d['color_resolution'] = self.config['color_resolution']
         return d
 
-models.register_model('color', ColorStarflatModel)
+models.register_model(ColorStarflatModel)

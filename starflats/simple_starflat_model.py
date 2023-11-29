@@ -27,6 +27,10 @@ class SimpleStarflatModel(models.StarflatModel):
     def model_math():
         return "$m_\mathrm{ADU}=m_s+\delta ZP(u, v)$"
 
+    @staticmethod
+    def model_name():
+        return 'simple'
+
     def fix_params(self, model):
         model.params['dzp'].fix(0, 0.)
 
@@ -77,4 +81,4 @@ class SimpleStarflatModel(models.StarflatModel):
         #     plt.close()
 
 
-models.register_model('simple', SimpleStarflatModel)
+models.register_model(SimpleStarflatModel)

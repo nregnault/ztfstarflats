@@ -97,6 +97,10 @@ class StarflatModel:
     def model_math():
         raise NotImplementedError
 
+    @staticmethod
+    def model_name():
+        raise NotImplementedError
+
     def fix_params(self):
         raise NotImplementedError
 
@@ -207,6 +211,7 @@ class StarflatModel:
         d['chi2'] = self.chi2
         d['ndof'] = self.ndof.item()
         d['chi2_ndof'] = (self.chi2/self.ndof).item()
+        d['model'] = self.model_name()
 
         return d
 
@@ -329,5 +334,5 @@ class StarflatModel:
 
 Models = {}
 
-def register_model(name, model):
-    Models[name] = model
+def register_model(model):
+    Models[model.model_name()] = model

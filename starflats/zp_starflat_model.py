@@ -28,6 +28,10 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
     def model_math():
         return "$m_\mathrm{ADU}=m_s+\delta ZP(u, v) + ZP(mjd)$"
 
+    @staticmethod
+    def model_name():
+        return 'zp'
+
     def fix_params(self, model):
         super().fix_params(model)
         model.params['zp'].fix(0, 0.)
@@ -56,4 +60,4 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
     def _dump_recap(self):
         return super()._dump_recap()
 
-models.register_model('zp', ZPStarflatModel)
+models.register_model(ZPStarflatModel)

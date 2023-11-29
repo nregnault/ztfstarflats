@@ -30,6 +30,10 @@ class FullStarflatModel(ColorStarflatModel):
     def model_math():
         return "$m_\mathrm{ADU}=m_s+\delta ZP(u, v) + ZP(mjd) + \delta k C_{Bp-Rp} + k(X(u, v)-1)$"
 
+    @staticmethod
+    def model_name():
+        return 'full'
+
     def fix_params(self, model):
         super().fix_params(model)
 
@@ -77,4 +81,4 @@ class FullStarflatModel(ColorStarflatModel):
         return d
 
 
-models.register_model('full', FullStarflatModel)
+models.register_model(FullStarflatModel)
