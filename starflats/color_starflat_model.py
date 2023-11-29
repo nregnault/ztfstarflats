@@ -55,5 +55,10 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
         plt.savefig(output_path.joinpath("dk.png"), dpi=300.)
         plt.close()
 
+    def _dump_recap(self):
+        d = super()._dump_recap()
+
+        d['color_resolution'] = self.config['color_resolution']
+        return d
 
 models.register_model('color', ColorStarflatModel)

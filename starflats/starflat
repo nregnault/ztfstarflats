@@ -15,6 +15,7 @@ if __name__ == '__main__':
     argparser.add_argument('--list-models', action='store_true', help="List all implemented models.")
     argparser.add_argument('--plot', action='store_true', help="Generate control plots.")
     argparser.add_argument('--solve', action='store_true', help="Solve the model.")
+    argparser.add_argument('--recap', action='store_true', help="Dump general informations on the found solution.")
 
     args = argparser.parse_args()
 
@@ -38,6 +39,11 @@ if __name__ == '__main__':
         model.solve()
         print("Saving...")
         model.dump_result(args.output_path.joinpath("model.pickle"))
+
+    if args.recap:
+        dataset_name = args.dataset_path.stem.split("_")[-1]
+        model.load_result(args.output_path.joinpath("model.pickle"))
+        model.dump_recap(args.output_path.joinpath("recap_{}.yaml".format(dataset_name)))
 
     if args.plot:
         print("Plotting...")

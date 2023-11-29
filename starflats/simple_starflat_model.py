@@ -33,6 +33,12 @@ class SimpleStarflatModel(models.StarflatModel):
     def eq_constraints(self, model, mu=0.1):
         return [[model.params['dzp'].indexof(), mu]]
 
+    def _dump_recap(self):
+        d = super()._dump_recap()
+        d['zp_resolution'] = self.config['zp_resolution']
+
+        return d
+
     def plot(self, output_path):
         super().plot(output_path)
 

@@ -3,7 +3,7 @@
 import pickle
 import time
 
-from yaml import load, Loader
+from yaml import load, Loader, dump
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -195,6 +195,28 @@ class StarflatModel:
         plt.savefig(output_path.joinpath("chi2_mjd.png"), dpi=300.)
         plt.close()
 
+    def _dump_recap(self):
+        d = {}
+        d['photometry'] = self.config['photometry']
+        d['dataset_name'] = self.dataset_name
+        d['piedestal'] = self.config['piedestal']
+        d['solve_method'] = self.config['solve_method']
+        d['exposure_count'] = len(self.dp.mjd_map)
+        d['star_count'] = len(self.dp.gaiaid_map)
+        d['measure_count'] = len(self.dp.nt)
+        d['bads_count'] = np.sum(self.bads).item()
+        d['chi2'] = self.chi2
+        d['ndof'] = self.ndof.item()
+        d['chi2_ndof'] = (self.chi2/self.ndof).item()
+
+        return d
+
+    def dump_recap(self, output_path):
+        d = self._dump_recap()
+
+        with open(output_path, 'w') as f:
+            dump(d, f)
+
     def solve(self):
         method = self.__config['solve_method']
         model = self.build_model()
@@ -292,16 +314,6 @@ class StarflatModel:
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:
             pickle.dump({'fitted_params': self.fitted_params, 'bads': self.bads, 'res': self.res, 'cov': self.cov}, f)
-
-    def dump_stats(self, output_path):
-        d = {}
-        d['photometry'] = self.config['photometry']
-        d['zp_superpixel_res'] = self.config['']
-        d['measure_count'] = len(self.dp.nt)
-        d['bads_count'] = sum(self.bads)
-        d['chi2'] = self.chi2.item()
-        d['ndof'] = self.ndof.item()
-        d['chi2_ndof'] = (self.chi2/self.ndof).item()
 
     def load_result(self, result_path):
         with open(result_path, 'rb') as f:

@@ -53,4 +53,7 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
         plt.savefig(output_path.joinpath("zp.png"), dpi=300.)
         plt.close()
 
+    def _dump_recap(self):
+        return super()._dump_recap()
+
 models.register_model('zp', ZPStarflatModel)

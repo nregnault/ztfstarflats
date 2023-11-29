@@ -71,5 +71,10 @@ class FullStarflatModel(ColorStarflatModel):
         # plt.savefig(output_path.joinpath("superpixel_count.png"), dpi=300.)
         # plt.close()
 
+    def _dump_recap(self):
+        d = super()._dump_recap()
+        d['k'] = self.fitted_params['k'].full[:].item()
+        return d
+
 
 models.register_model('full', FullStarflatModel)
