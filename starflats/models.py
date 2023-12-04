@@ -27,7 +27,7 @@ class StarflatModel:
             self.__config = load(f, Loader=Loader)
 
         photo_key = self.__config['photometry']
-        photo_err_key = 'e' + self.__config['photometry']
+        photo_err_key = self.__config['photometry_error']
         photo_color_lhs = self.__config['color_lhs']
         photo_color_rhs = self.__config['color_rhs']
         photo_ext_cat = self.__config['photometry_ext_cat']
