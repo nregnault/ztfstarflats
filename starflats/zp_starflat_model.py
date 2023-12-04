@@ -16,8 +16,6 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp')
-        # model.params['dzp'].fix(0, 0.)
-        # model.params['zp'].fix(0, 0.)
         return model
 
     @staticmethod

@@ -43,38 +43,6 @@ class FullStarflatModel(ColorStarflatModel):
     def plot(self, output_path):
         super().plot(output_path)
 
-        chi2_ndof = np.sum(self.wres[~self.bads]**2)/self.ndof
-
-        # plt.subplots(figsize=(10., 5.))
-        # plt.suptitle("Residuals wrt airmass")
-        # m = self.dp.G[~self.bads] < 13
-        # plt.plot(self.dp.X[~self.bads][m]-1., self.res[~self.bads][m], ',')
-        # plt.xlabel("$X(\\alpha,\\delta)-1$")
-        # plt.ylabel("$y_\mathrm{ADU}-y_\mathrm{model}$ [mag]")
-        # plt.grid()
-        # plt.tight_layout()
-        # plt.savefig(output_path.joinpath("res_airmass.png"), dpi=300.)
-        # plt.close()
-
-        # fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
-        # plt.suptitle("$\delta ZP(u, v) - {}$\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        # self.superpixels.plot(fig, self.fitted_params['dzp'].full, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
-        # plt.savefig(output_path.joinpath("dzp.png"), dpi=300.)
-        # plt.close()
-
-        # fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
-        # plt.suptitle("$\delta k(u, v) - {}$\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        # #self.superpixels.plot(fig, self.fitted_params['dk'].full, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta k$")
-        # self.superpixels.plot(fig, self.fitted_params['dk'].full, cmap='viridis', vlim='mad', cbar_label="$\delta k$")
-        # plt.savefig(output_path.joinpath("dk.png"), dpi=300.)
-        # plt.close()
-
-        # fig, axs = plt.subplots(figsize=(12., 12.))
-        # plt.suptitle("Measure count per superpixel")
-        # self.superpixels.plot(fig, np.bincount(self.dp.dzp_index), cbar_label="Measure count")
-        # plt.savefig(output_path.joinpath("superpixel_count.png"), dpi=300.)
-        # plt.close()
-
     def _dump_recap(self):
         d = super()._dump_recap()
         d['k'] = self.fitted_params['k'].full[:].item()

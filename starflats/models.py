@@ -26,12 +26,11 @@ class StarflatModel:
         with open(config_path, 'r') as f:
             self.__config = load(f, Loader=Loader)
 
-        # assert (self.__config['photometry'] in photometry_choices)
-
-        photo_key = photometry_choice_to_key[self.__config['photometry']]
-        photo_err_key = photometry_error_choice_to_key[self.__config['photometry']]
+        photo_key = self.__config['photometry']
+        photo_err_key = 'e' + self.__config['photometry']
         photo_color_lhs = self.__config['color_lhs']
         photo_color_rhs = self.__config['color_rhs']
+        photo_ext_cat = self.__config['photometry_ext_cat']
 
         df = pd.read_parquet(dataset_path)
 
@@ -45,12 +44,12 @@ class StarflatModel:
 
         df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
 
-        # df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
         df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
-        # df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
+
+        df['ext_cat_mag'] = df[photo_ext_cat]
 
         # Remove potential outliers
-        if photo_color_lhs == 'BP' and photo_color_rhs == 'RP':
+        if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
             measure_count = len(df)
             df = df.loc[df['G']>10.]
             df = df.loc[df['col']<5.]
@@ -133,9 +132,9 @@ class StarflatModel:
         plt.close()
 
         plt.subplots(figsize=(12., 5.))
-        plt.suptitle("Residual plot wrt $G$ magnitude\nModel: {}".format(self.model_math()))
-        plt.plot(self.dp.G[~self.bads], self.res[~self.bads], ',')
-        plt.xlabel("$m_G$ [AB mag]")
+        plt.suptitle("Residual plot wrt ${}$ magnitude\nModel: {}".format(self.config['photometry_ext_cat'], self.model_math()))
+        plt.plot(self.dp.ext_cat_mag[~self.bads], self.res[~self.bads], ',')
+        plt.xlabel("$m_{}$ [mag]".format(self.config['photometry_ext_cat']))
         plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
         plt.ylim(-0.75, 0.75)
         plt.grid()
@@ -148,10 +147,10 @@ class StarflatModel:
         plt.suptitle("Standardized residuals\npiedestal={}".format(self.config['piedestal']))
 
         plt.subplot(2, 2, 1)
-        xbinned_mag, yplot_stdres, stdres_dispersion = binplot(self.dp.G[~self.bads], wres[~self.bads], data=False, scale=False, nbins=5)
-        plt.plot(self.dp.G[~self.bads], wres[~self.bads], ',', color='xkcd:light blue')
+        xbinned_mag, yplot_stdres, stdres_dispersion = binplot(self.dp.ext_cat_mag[~self.bads], wres[~self.bads], data=False, scale=False, nbins=5)
+        plt.plot(self.dp.ext_cat_mag[~self.bads], wres[~self.bads], ',', color='xkcd:light blue')
         plt.ylabel("$\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}$ [mag]")
-        plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
+        plt.xlim([np.min(self.dp.ext_cat_mag[~self.bads]), np.max(self.dp.ext_cat_mag[~self.bads])])
         plt.grid()
 
         plt.subplot(2, 2, 2)
@@ -166,8 +165,8 @@ class StarflatModel:
 
         plt.subplot(2, 2, 3)
         plt.plot(xbinned_mag, stdres_dispersion)
-        plt.xlim([np.min(self.dp.G[~self.bads]), np.max(self.dp.G[~self.bads])])
-        plt.xlabel("$m_\mathrm{G}$ [AB mag]")
+        plt.xlim([np.min(self.dp.ext_cat_mag[~self.bads]), np.max(self.dp.ext_cat_mag[~self.bads])])
+        plt.xlabel("$m_\mathrm{{{}}}$ [AB mag]".format(self.config['photometry_ext_cat']))
         plt.ylabel("$\\sigma_{\\frac{m_{ADU}-m_\\mathrm{model}}{\\sigma_m}}$ [mag]")
         plt.axhline(1.)
         plt.grid()
@@ -179,9 +178,9 @@ class StarflatModel:
         plt.close()
 
         plt.subplots(figsize=(12., 5.))
-        plt.suptitle("Residual plot wrt $Bp-Rp$ magnitude\nModel: {}".format(self.model_math()))
-        plt.plot(self.dp.BP[~self.bads] - self.dp.RP[~self.bads], self.res[~self.bads], ',')
-        plt.xlabel("$m_{Bp}-m_{Rp}$ [mag]")
+        plt.suptitle("Residual plot wrt ${}-{}$ magnitude\nModel: {}".format(self.config['color_lhs'], self.config['color_rhs'], self.model_math()))
+        plt.plot(self.dp.col[~self.bads], self.res[~self.bads], ',')
+        plt.xlabel("$m_{{{}}}-m_{{{}}}$ [mag]".format(self.config['color_lhs'], self.config['color_rhs']))
         plt.ylabel("$m_\mathrm{ADU}-m_\mathrm{model}$ [mag]")
         plt.ylim(-0.75, 0.75)
         plt.grid()
