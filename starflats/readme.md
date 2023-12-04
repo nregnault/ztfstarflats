@@ -80,14 +80,15 @@ $m_\mathrm{ADU}=m_s+\delta ZP(u, v) + ZP(mjd) + \delta k C_{Bp-Rp} + k(X(u, v)-1
 Configuration file example, in yaml format:
 ```
 photometry: psf
+color_lhs: BP
+color_rhs: RP
 piedestal: 0.005
 zp_resolution: 15
 color_resolution: 2
 solve_method: cholesky
-flip_flop_max_iter: 4
 eq_constraints: false
 ```
 
-Available photometry are `psf` and apperture `apflX` with `X` a number between 0 and 9 (smaller to bigger apperture).
+Any photometry field can be used, as long as a corresponding error RMS field exists, starting with `e`. A color field is built by substracting fields `color\_lhs` with `color\_rsh`.
 
-2 solve method are implemented, `cholesky` and `cholesky_flip_flop`.
+2 solve methods are implemented, `cholesky` (recommanded) and `cholesky_flip_flop`.

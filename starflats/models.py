@@ -26,10 +26,12 @@ class StarflatModel:
         with open(config_path, 'r') as f:
             self.__config = load(f, Loader=Loader)
 
-        assert (self.__config['photometry'] in photometry_choices)
+        # assert (self.__config['photometry'] in photometry_choices)
 
         photo_key = photometry_choice_to_key[self.__config['photometry']]
         photo_err_key = photometry_error_choice_to_key[self.__config['photometry']]
+        photo_color_lhs = self.__config['color_lhs']
+        photo_color_rhs = self.__config['color_rhs']
 
         df = pd.read_parquet(dataset_path)
 
@@ -43,15 +45,17 @@ class StarflatModel:
 
         df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
 
-        df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
-        df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
+        # df['col'] = (df['BP'] - df['RP']) - np.mean(df['BP']-df['RP'])
+        df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
+        # df['ecol'] = np.sqrt(df['eBP']**2+df['eRP']**2)
 
         # Remove potential outliers
-        measure_count = len(df)
-        df = df.loc[df['G']>10.]
-        df = df.loc[df['col']<5.]
-        df = df.loc[df['col']>-1.]
-        print("Removed {} potential outliers".format(measure_count-len(df)))
+        if photo_color_lhs == 'BP' and photo_color_rhs == 'RP':
+            measure_count = len(df)
+            df = df.loc[df['G']>10.]
+            df = df.loc[df['col']<5.]
+            df = df.loc[df['col']>-1.]
+            print("Removed {} potential outliers".format(measure_count-len(df)))
 
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)
