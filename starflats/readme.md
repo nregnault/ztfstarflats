@@ -6,7 +6,7 @@ The starflat fitting software `starflat` expect one dataset per sequence, as a D
 Columns are as follows:
 ```
 gaiaid x y ra dec psfflux epsfflux G BP RP eG eBP eRP mjd qid ccdid filtercode quadrant seeing apfl0 eapfl0 rad0 apfl1 eapfl1 rad1 apfl2 eapfl2 rad2 apfl3 eapfl3 rad3 apfl4 eapfl4 rad4 apfl5 eapfl5 rad5 apfl6 eapfl6 rad6 apfl7 eapfl7 rad7 apfl8 eapfl8 rad8 apfl9 eapfl9 rad9
-``
+```
 
 ### `extract_measures`
 The ZTF Scene Modeling Photometry (SMP) pipeline can be used to get such a sequence dataset, using the `concat_catalog` operation. This gives a dataset, per `rcid`, concatening all relevant catalogs, i.e. aperture and PSF photometry, external catalogs (PS1, Gaia) and most quadrant header informations. Currently, starflat photometry measurements, implemented using the SMP pipeline, process starflats per year. Since there a years with several starflats, a tool has been written to split these big 1 year datasets into individual starflat sequences.
