@@ -54,6 +54,12 @@ class SimpleStarflatModel(models.StarflatModel):
         plt.savefig(output_path.joinpath("dzp.png"))
         plt.close()
 
+        fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
+        plt.suptitle("$\delta ZP(u, v)$ without gain substraction - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
+        plt.savefig(output_path.joinpath("dzp_gain.png"))
+        plt.close()
+
         fig, axs = plt.subplots(figsize=(12., 12.))
         plt.suptitle("Measure count per superpixel")
         self.superpixels.plot(fig, np.bincount(self.dp.dzp_index), cbar_label="Measure count")
