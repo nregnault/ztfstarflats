@@ -12,7 +12,7 @@ from ztfquery.fields import ccdid_qid_to_rcid
 
 from linearmodels import RobustLinearSolver, LinearModel
 from dataproxy import DataProxy
-from utils import binplot, idx2markerstyle
+from utils import binplot, idx2markerstyle, make_index_from_array
 
 photometry_choices = ['psf'] + ['apfl{}'.format(i) for i in range(10)]
 
@@ -52,9 +52,17 @@ class StarflatModel:
         if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
             measure_count = len(df)
             df = df.loc[df['G']>10.]
-            df = df.loc[df['col']<5.]
+            df = df.loc[df['G']<20.5]
+            df = df.loc[df['col']<2.5]
             df = df.loc[df['col']>-1.]
             print("Removed {} potential outliers".format(measure_count-len(df)))
+
+        print("Removing stars that have less than {} measures...".format(5))
+        gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
+        gaiaid_mask = (np.bincount(gaiaid_index) < 5)
+        to_remove_mask = gaiaid_mask[gaiaid_index]
+        df = df.loc[~to_remove_mask]
+        print(" Removed {} measures.".format(sum(to_remove_mask)))
 
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)

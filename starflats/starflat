@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if args.solve:
         print("Solving model...")
         model.solve()
-        print("Saving...")
+        print("Saving to {}".format(args.output_path))
         model.dump_result(args.output_path.joinpath("model.pickle"))
 
     if args.recap:
@@ -46,6 +46,6 @@ if __name__ == '__main__':
         model.dump_recap(args.output_path.joinpath("recap_{}.yaml".format(dataset_name)))
 
     if args.plot:
-        print("Plotting...")
+        print("Plotting to {}".format(args.output_path))
         model.load_result(args.output_path.joinpath("model.pickle"))
         model.plot(args.output_path)

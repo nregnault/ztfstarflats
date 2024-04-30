@@ -23,9 +23,9 @@ if __name__ == '__main__':
     args.config_path = args.config_path.expanduser().resolve()
     args.run_path = args.run_path.expanduser().resolve()
 
-    if args.actions == "" and args.generate:
-        print("Cannot generate jobs without actions!")
-        exit()
+    # if args.actions == "" and args.generate:
+    #     print("Cannot generate jobs without actions!")
+    #     exit()
 
     # if args.actions != "":
     #     actions = args.actions.split(",")
@@ -41,6 +41,8 @@ if __name__ == '__main__':
     print("Found {} datasets".format(len(dataset_paths)))
 
     if args.generate:
+        args.run_path.joinpath("batches").mkdir(exist_ok=True)
+
         for dataset_path in dataset_paths:
             dataset_name = dataset_path.stem.split("_")[-1]
             print(dataset_name)
@@ -64,7 +66,7 @@ starflat_all_photometry.sh {dataset_path} {config_path} {output_path}
                    "-o", args.run_path.joinpath("logs/log_{}".format(dataset_name)),
                    "-A", "ztf",
                    "-L", "sps",
-                   "--mem=14G",
+                   "--mem=20G",
                    "-t", "5-0",
                    args.run_path.joinpath("batches/{}.sh".format(dataset_name))]
 

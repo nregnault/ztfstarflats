@@ -18,7 +18,7 @@ if __name__ == '__main__':
     argparser.add_argument('--year', type=int, help="Which year to process.")
     argparser.add_argument('--filtercode', type=str, choices=ztffiltercodes, help="Which filter to process")
     argparser.add_argument('--min-measure-count', type=int, default=5, help="Filter out stars having less than a certain amount of detections/measurements.")
-    argparser.add_argument('--max-g-mag', type=float, default=18., help="Filter out stars having an Gaia G band magnitude higher than the set amount.")
+    argparser.add_argument('--max-g-mag', type=float, default=22., help="Filter out stars having an Gaia G band magnitude higher than the set amount.")
 
     args = argparser.parse_args()
     args.dataset_path = args.dataset_path.expanduser().resolve()
