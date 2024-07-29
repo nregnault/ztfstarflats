@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.time import Time
+import pathlib
 
 import models
 import zp_starflat_model
@@ -16,14 +17,10 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
 
         self.color_superpixels = SuperpixelizedZTFFocalPlan(self.config['color_resolution'])
         self.dp.add_field('dk', self.color_superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
-
         self.dp.make_index('dk')
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp') + indic(self.dp.dk_index, val=self.dp.col, name='dk')
-        # model.params['dzp'].fix(0, 0.)
-        # model.params['zp'].fix(0, 0.)
-        # model.params['dk'].fix(0, 0.)
         return model
 
     @staticmethod

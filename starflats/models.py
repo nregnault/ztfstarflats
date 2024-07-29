@@ -51,10 +51,10 @@ class StarflatModel:
         # Remove potential outliers
         if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
             measure_count = len(df)
-            df = df.loc[df['G']>10.]
+            # df = df.loc[df['G']>10.]
             df = df.loc[df['G']<20.5]
-            df = df.loc[df['col']<2.5]
-            df = df.loc[df['col']>-1.]
+            # df = df.loc[df['col']<2.5]
+            # df = df.loc[df['col']>-1.]
             print("Removed {} potential outliers".format(measure_count-len(df)))
 
         print("Removing stars that have less than {} measures...".format(5))

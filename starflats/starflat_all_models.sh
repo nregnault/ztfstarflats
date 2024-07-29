@@ -15,11 +15,11 @@ mkdir -p $3/$dataset_name/$4/color
 mkdir -p $3/$dataset_name/$4/full
 
 echo "Simple model"
-starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/simple --model=simple --solve --plot --recap
+#starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/simple --model=simple --solve --plot --recap
 # starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/simple --model=simple --plot
 
 echo "ZP model"
-starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/zp --model=zp --solve --plot --recap
+#starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/zp --model=zp --solve --plot --recap
 # starflat --dataset-path=$1 --config-path=$2/config_$4.yaml --output-path=$3/$dataset_name/$4/zp --model=zp --plot
 
 echo "Color model"

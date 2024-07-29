@@ -32,9 +32,11 @@ if __name__ == '__main__':
     filtercode = args.filtercode
     # First retrieve relevant datasets
     dataset_paths = list(args.dataset_path.glob("measures_{}_*-{}-*.parquet".format(args.year, filtercode)))
+    if len(dataset_paths):
+        print("Could not find any dataset in folder {} for year {} in filter {}!".format(args.dataset_path, args.year, filtercode))
 
     dataset_list = []
-    print("Loading datasets from {}, in band {}".format(args.dataset_path, filtercode))
+    print("Loading datasets from {}, year {} in band {}".format(args.dataset_path, args.year, filtercode))
     for dataset_path in dataset_paths:
         columns_to_extract = ['gaia_Source', 'psf_x', 'psf_y', 'gaia_RA_ICRS', 'gaia_DE_ICRS', 'psf_flux', 'psf_eflux', 'gaia_Gmag', 'gaia_BPmag', 'gaia_RPmag', 'gaia_e_Gmag', 'gaia_e_BPmag', 'gaia_e_RPmag',
                             'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing']
