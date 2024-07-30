@@ -254,8 +254,12 @@ class SuperpixelizedZTFFocalPlan:
                 vmax = 5.*median_abs_deviation(values)
                 vmin = -5.*median_abs_deviation(values)
             elif vlim == 'mad_positive':
-                vmax = 8*median_abs_deviation(values)
+                vmax = 10*median_abs_deviation(values)
                 vmin = 0.
+            elif vlim == 'sigma_clipping':
+                m, s = np.mean(values), np.std(values)
+                vmax = m+s
+                vmin = m-s
 
         else:
             vmin, vmax = vlim

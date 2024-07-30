@@ -73,7 +73,7 @@ class SimpleStarflatModel(models.StarflatModel):
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("Stacked $\chi^2$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, wres_dzp, vec_map=self.dp.dzp_map)
+        self.superpixels.plot(fig, wres_dzp, vec_map=self.dp.dzp_map, vlim='sigma_clipping')
         plt.savefig(output_path.joinpath("chi2_superpixels.png"))
         plt.close()
 
