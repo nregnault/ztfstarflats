@@ -52,7 +52,7 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta k(u, v) - {}$\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.color_superpixels.plot(fig, self.fitted_params['dk'].full, cmap='viridis', vlim='mad', cbar_label="$\delta k$")
+        self.color_superpixels.plot(fig, self.fitted_params['dk'].full, self.dp.dk_map, cmap='viridis', vlim='mad', cbar_label="$\delta k$")
         plt.savefig(output_path.joinpath("dk.png"), dpi=300.)
         plt.close()
 

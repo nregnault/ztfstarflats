@@ -15,6 +15,7 @@ class SimpleStarflatModel(models.StarflatModel):
         self.superpixels = SuperpixelizedZTFFocalPlan(self.config['zp_resolution'])
         self.dp.add_field('dzp', self.superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
         self.dp.make_index('dzp')
+        b = np.bincount(self.dp.dzp)
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp')
@@ -51,27 +52,28 @@ class SimpleStarflatModel(models.StarflatModel):
 
         fig, axs = plt.subplots(figsize=(12., 12.))
         plt.suptitle("Measure count per superpixel")
-        self.color_superpixels.plot(fig, np.bincount(self.dp.dzp_index), cbar_label="Measure count")
+
+        self.superpixels.plot(fig, np.bincount(self.dp.dzp), cbar_label="Measure count")
         plt.savefig(output_path.joinpath("superpixel_count.png"), dpi=300.)
         plt.close()
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("dzp.png"))
         plt.close()
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ without gain substraction - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("dzp_gain.png"))
         plt.close()
 
-        wres_dzp = np.bincount(self.dp.dzp_index, weights=self.wres**2, minlength=self.superpixels.vecsize)/np.bincount(self.dp.dzp_index, minlength=self.superpixels.vecsize)
+        wres_dzp = np.bincount(self.dp.dzp_index, weights=self.wres**2)/np.bincount(self.dp.dzp_index)
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("Stacked $\chi^2$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, wres_dzp, vlim='mad_positive')
+        self.superpixels.plot(fig, wres_dzp, vec_map=self.dp.dzp_map)
         plt.savefig(output_path.joinpath("chi2_superpixels.png"))
         plt.close()
 

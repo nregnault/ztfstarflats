@@ -203,9 +203,8 @@ class SuperpixelizedZTFFocalPlan:
     def superpixelize(self, x, y, ccdid, qid):
         xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
         ybins = np.linspace(0., quadrant_height_px, self.__resolution+1)
-
-        ix = np.digitize(x, xbins) - 1
-        iy = np.digitize(y, ybins) - 1
+        ix = np.digitize(x, xbins, right=True) - 1
+        iy = np.digitize(y, ybins, right=True) - 1
 
         return self.__resolution**2*(4*(ccdid-1)+qid)+iy*self.__resolution+ix
 
@@ -219,25 +218,45 @@ class SuperpixelizedZTFFocalPlan:
         else:
             return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*4*ccdid)
 
-    def plot(self, fig, vec, cmap=None, vlim=None, f=None, cbar_label=None):
-        focal_plane_dict = dict([(ccdid+1, dict([(qid, vec[self.vecrange(ccdid+1, qid)]) for qid in range(4)])) for ccdid in range(16)])
+    def plot(self, fig, vec, vec_map=None, cmap=None, vlim=None, f=None, cbar_label=None, mask=None):
+        if vec_map is not None:
+            _vec = np.full([64*self.__resolution**2], np.nan)
+            np.put_along_axis(_vec, np.array(list(vec_map.keys())), vec, 0)
+            vec = _vec
+
+        if mask:
+            focal_plane_dict = {}
+            for ccdid in range(1, 17):
+                focal_plane_dict[ccdid] = {}
+                for qid in range(4):
+                    focal_plane_dict[ccdid][qid] = vec[self.vecrange(ccdid, qid)]
+                    # if mask[ccdid][qid]:
+                    #     focal_plane_dict[ccdid][qid] = vec[self.vecrange(ccdid, qid)]
+                    # else:
+                    #     focal_plane_dict[ccdid][qid] = np.full([self.__resolution**2], np.nan)
+        else:
+            focal_plane_dict = dict([(ccdid, dict([(qid, vec[self.vecrange(ccdid, qid)]) for qid in range(4)])) for ccdid in range(1, 17)])
 
         if f is not None:
             for ccdid in focal_plane_dict.keys():
                 for qid in focal_plane_dict[ccdid].keys():
                     focal_plane_dict[ccdid][qid] = focal_plane_dict[ccdid][qid]-f(focal_plane_dict[ccdid][qid])
+                    # if mask[ccdid][qid]:
+                    #     focal_plane_dict[ccdid][qid] = focal_plane_dict[ccdid][qid]-f(focal_plane_dict[ccdid][qid])
 
-        if vlim is None:
-            values = np.array([[focal_plane_dict[ccdid+1][qid] for qid in range(4)] for ccdid in range(16)]).flatten()
-            vmin, vmax = np.min(values), np.max(values)
-        elif vlim == 'mad':
-            values = np.array([[focal_plane_dict[ccdid+1][qid] for qid in range(4)] for ccdid in range(16)]).flatten()
-            vmax = 5.*median_abs_deviation(values)
-            vmin = -5.*median_abs_deviation(values)
-        elif vlim == 'mad_positive':
-            values = np.array([[focal_plane_dict[ccdid+1][qid] for qid in range(4)] for ccdid in range(16)]).flatten()
-            vmax = 8*median_abs_deviation(values)
-            vmin = 0.
+        if vlim is None or isinstance(vlim, str):
+            values = np.array([[focal_plane_dict[ccdid][qid] for qid in range(4)] for ccdid in range(1, 17)]).flatten()
+            values = values[~np.isnan(values)]
+
+            if vlim is None:
+                vmin, vmax = np.min(values), np.max(values)
+            elif vlim == 'mad':
+                vmax = 5.*median_abs_deviation(values)
+                vmin = -5.*median_abs_deviation(values)
+            elif vlim == 'mad_positive':
+                vmax = 8*median_abs_deviation(values)
+                vmin = 0.
+
         else:
             vmin, vmax = vlim
 

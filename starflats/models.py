@@ -2,6 +2,7 @@
 
 import pickle
 import time
+import yaml
 
 from yaml import load, Loader, dump
 import numpy as np
@@ -12,7 +13,8 @@ from ztfquery.fields import ccdid_qid_to_rcid
 
 from linearmodels import RobustLinearSolver, LinearModel
 from dataproxy import DataProxy
-from utils import binplot, idx2markerstyle, make_index_from_array
+from utils import binplot, idx2markerstyle, make_index_from_array, quadrant_width_px, quadrant_height_px
+
 
 photometry_choices = ['psf'] + ['apfl{}'.format(i) for i in range(10)]
 
@@ -20,6 +22,7 @@ photometry_choice_to_key = {'psf': 'psfflux'}
 photometry_choice_to_key.update(dict([('apfl{}'.format(i), 'apfl{}'.format(i)) for i in range(10)]))
 photometry_error_choice_to_key = {'psf': 'epsfflux'}
 photometry_error_choice_to_key.update(dict([('apfl{}'.format(i), 'eapfl{}'.format(i)) for i in range(10)]))
+
 
 class StarflatModel:
     def __init__(self, config_path, dataset_path):
@@ -35,8 +38,18 @@ class StarflatModel:
         df = pd.read_parquet(dataset_path)
 
         measure_count = len(df)
+        print("Removing negative flux")
         df = df.loc[df[photo_key]>0.]
         print("Removed {} negative measures".format(measure_count-len(df)))
+        print("Measure count={}".format(len(df)))
+
+        measure_count = len(df)
+        print("Removing out of bound measures")
+        df = df.loc[df['x']>0.]
+        df = df.loc[df['x']<=quadrant_width_px]
+        df = df.loc[df['y']>0.]
+        df = df.loc[df['y']<=quadrant_height_px]
+        print("Removed {} out of bound measures".format(measure_count-len(df)))
         print("Measure count={}".format(len(df)))
 
         df['mag'] = -2.5*np.log10(df[photo_key])
@@ -48,21 +61,21 @@ class StarflatModel:
 
         df['ext_cat_mag'] = df[photo_ext_cat]
 
-        # Remove potential outliers
-        if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
-            measure_count = len(df)
-            # df = df.loc[df['G']>10.]
-            df = df.loc[df['G']<20.5]
-            # df = df.loc[df['col']<2.5]
-            # df = df.loc[df['col']>-1.]
-            print("Removed {} potential outliers".format(measure_count-len(df)))
+        # # Remove potential outliers
+        # if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
+        #     measure_count = len(df)
+        #     # df = df.loc[df['G']>10.]
+        #     df = df.loc[df['G']<20.5]
+        #     # df = df.loc[df['col']<2.5]
+        #     # df = df.loc[df['col']>-1.]
+        #     print("Removed {} potential outliers".format(measure_count-len(df)))
 
-        print("Removing stars that have less than {} measures...".format(5))
-        gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
-        gaiaid_mask = (np.bincount(gaiaid_index) < 5)
-        to_remove_mask = gaiaid_mask[gaiaid_index]
-        df = df.loc[~to_remove_mask]
-        print(" Removed {} measures.".format(sum(to_remove_mask)))
+        # print("Removing stars that have less than {} measures...".format(5))
+        # gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
+        # gaiaid_mask = (np.bincount(gaiaid_index) < 5)
+        # to_remove_mask = gaiaid_mask[gaiaid_index]
+        # df = df.loc[~to_remove_mask]
+        # print(" Removed {} measures.".format(sum(to_remove_mask)))
 
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)
@@ -72,6 +85,17 @@ class StarflatModel:
         self.dp.make_index('ccdid')
         self.dp.make_index('mjd')
         self.dp.make_index('gaiaid')
+
+        # print(np.bincount(self.dp.ccdid))
+        # print([len(df.loc[df['ccdid']==ccdid]) for ccdid in range(1, 17)])
+        # for qid in range(4):
+        #     d = df.loc[df['ccdid']==14]
+        #     d = d.loc[d['qid']==qid]
+        #     plt.suptitle("ccdid=14, qid={}".format(qid))
+        #     plt.plot(d['x'], d['y'], '.')
+        #     plt.grid()
+        #     plt.axis('equal')
+        #     plt.show()
 
     @property
     def config(self):
