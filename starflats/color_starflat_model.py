@@ -12,10 +12,13 @@ from linearmodels import indic
 
 
 class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
-    def __init__(self, config_path, dataset_path):
-        super().__init__(config_path, dataset_path)
-
+    def __init__(self, config, mask):
+        super().__init__(config, mask)
         self.color_superpixels = SuperpixelizedZTFFocalPlan(self.config['color_resolution'])
+
+    def load_data(self, dataset_path):
+        super().load_data(dataset_path)
+
         self.dp.add_field('dk', self.color_superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
         self.dp.make_index('dk')
 
@@ -37,16 +40,23 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
 
     def fix_params(self, model):
         super().fix_params(model)
-        model.params['dk'].fix(0, 0.)
+        # model.params['dk'].fix(0, 0.)
+        model.params['dk'].fix(self.color_superpixels.vecrange(7, 0).start, 0.)
 
     def eq_constraints(self, model, mu=0.1):
         constraints = super().eq_constraints(model, mu)
+        # model.params['dk'].fix(0, 0.)
+        # return super().eq_constraints(model, mu)
+
         constraints.append([model.params['dk'].indexof(), mu])
 
         return constraints
 
     def plot(self, output_path):
         super().plot(output_path)
+
+        print(self.fitted_params['dk'].full)
+        print(np.sum(self.fitted_params['dk'].full))
 
         chi2_ndof = np.sum(self.wres[~self.bads]**2)/self.ndof
 
@@ -61,5 +71,8 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
 
         d['color_resolution'] = self.config['color_resolution']
         return d
+
+    # def apply_model(self, x, y, ccdid, qid, mag, color, **kwords):
+    #     pass
 
 models.register_model(ColorStarflatModel)

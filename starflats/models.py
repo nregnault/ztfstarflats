@@ -13,7 +13,8 @@ from ztfquery.fields import ccdid_qid_to_rcid
 
 from linearmodels import RobustLinearSolver, LinearModel
 from dataproxy import DataProxy
-from utils import binplot, idx2markerstyle, make_index_from_array, quadrant_width_px, quadrant_height_px
+from utils import binplot, idx2markerstyle, make_index_from_array, quadrant_width_px, quadrant_height_px, sanitize_data
+from mask import FocalPlaneMask
 
 
 photometry_choices = ['psf'] + ['apfl{}'.format(i) for i in range(10)]
@@ -25,10 +26,30 @@ photometry_error_choice_to_key.update(dict([('apfl{}'.format(i), 'eapfl{}'.forma
 
 
 class StarflatModel:
-    def __init__(self, config_path, dataset_path):
-        with open(config_path, 'r') as f:
-            self.__config = load(f, Loader=Loader)
+    def __init__(self, config=None, mask=None):
+        self.__config = config
+        if mask:
+            self.__mask = mask
+        else:
+            self.__mask = FocalPlaneMask()
 
+    @classmethod
+    def from_config(cls, config_path):
+        with open(config_path, 'r') as f:
+            config = load(f, Loader=Loader)
+
+        return cls(config=config, mask=None)
+
+    @classmethod
+    def from_result(cls, config_path, result_path):
+        model = cls.from_config(config_path)
+        model.load_result(result_path)
+        return model
+
+    def load_mask(self, mask_path):
+        self.__mask = FocalPlaneMask.from_yaml(mask_path)
+
+    def load_data(self, dataset_path):
         photo_key = self.__config['photometry']
         photo_err_key = self.__config['photometry_error']
         photo_color_lhs = self.__config['color_lhs']
@@ -37,20 +58,27 @@ class StarflatModel:
 
         df = pd.read_parquet(dataset_path)
 
-        measure_count = len(df)
-        print("Removing negative flux")
-        df = df.loc[df[photo_key]>0.]
-        print("Removed {} negative measures".format(measure_count-len(df)))
-        print("Measure count={}".format(len(df)))
+        df = sanitize_data(df, self.__config['photometry'])
+
+        data_mask = FocalPlaneMask.from_data(df)
+        self.__mask = self.__mask & data_mask
 
         measure_count = len(df)
-        print("Removing out of bound measures")
-        df = df.loc[df['x']>0.]
-        df = df.loc[df['x']<=quadrant_width_px]
-        df = df.loc[df['y']>0.]
-        df = df.loc[df['y']<=quadrant_height_px]
-        print("Removed {} out of bound measures".format(measure_count-len(df)))
-        print("Measure count={}".format(len(df)))
+        df = df.loc[self.__mask.mask_from_data(df)]
+        if len(df) < measure_count:
+            print("Removed {} masked measures".format(measure_count-len(df)))
+            print("Measure count={}".format(len(df)))
+
+        # # Remove potential outliers
+        # df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
+        # # df['col'] = df[photo_color_lhs] - df[photo_color_rhs]
+        # if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
+        #     measure_count = len(df)
+        #     df = df.loc[df['G']>10.]
+        #     df = df.loc[df['G']<20.5]
+        #     df = df.loc[df['col']<2.5]
+        #     df = df.loc[df['col']>-1.]
+        #     print("Removed {} potential outliers".format(measure_count-len(df)))
 
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
@@ -61,14 +89,6 @@ class StarflatModel:
 
         df['ext_cat_mag'] = df[photo_ext_cat]
 
-        # # Remove potential outliers
-        # if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
-        #     measure_count = len(df)
-        #     # df = df.loc[df['G']>10.]
-        #     df = df.loc[df['G']<20.5]
-        #     # df = df.loc[df['col']<2.5]
-        #     # df = df.loc[df['col']>-1.]
-        #     print("Removed {} potential outliers".format(measure_count-len(df)))
 
         # print("Removing stars that have less than {} measures...".format(5))
         # gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
@@ -86,20 +106,13 @@ class StarflatModel:
         self.dp.make_index('mjd')
         self.dp.make_index('gaiaid')
 
-        # print(np.bincount(self.dp.ccdid))
-        # print([len(df.loc[df['ccdid']==ccdid]) for ccdid in range(1, 17)])
-        # for qid in range(4):
-        #     d = df.loc[df['ccdid']==14]
-        #     d = d.loc[d['qid']==qid]
-        #     plt.suptitle("ccdid=14, qid={}".format(qid))
-        #     plt.plot(d['x'], d['y'], '.')
-        #     plt.grid()
-        #     plt.axis('equal')
-        #     plt.show()
-
     @property
     def config(self):
         return self.__config
+
+    @property
+    def mask(self):
+        return self.__mask
 
     @property
     def dataset_name(self):
@@ -275,7 +288,6 @@ class StarflatModel:
             y = np.concatenate([y, [0.]*len(constraints)])
             weights = np.concatenate([weights, [1.]*len(constraints)])
 
-
         start_time = time.perf_counter()
         if method == 'cholesky':
             solver = self._solve_cholesky(model, y, weights)
@@ -350,9 +362,18 @@ class StarflatModel:
 
         return solver
 
+    def apply_starflat(self, x, y, ccdid, qid, **kwords):
+        raise NotImplementedError
+
     def dump_result(self, output_path):
         with open(output_path, 'wb') as f:
-            pickle.dump({'fitted_params': self.fitted_params, 'bads': self.bads, 'res': self.res, 'cov': self.cov}, f)
+            pickle.dump({'fitted_params': self.fitted_params,
+                         'bads': self.bads,
+                         'res': self.res,
+                         'cov': self.cov,
+                         'mask': self.mask,
+                         'dzp_to_index': self.dzp_to_index,
+                         'config': self.config}, f)
 
     def load_result(self, result_path):
         with open(result_path, 'rb') as f:
@@ -362,9 +383,11 @@ class StarflatModel:
         self.bads = d['bads']
         self.res = d['res']
         self.cov = d['cov']
+        self.dzp_to_index = d['dzp_to_index']
+        self.__config = d['config']
 
-        self.chi2 = np.sum(self.wres[~self.bads]**2).item()
-
+        # self.chi2 = np.sum(self.wres[~self.bads]**2).item()
+        self.__mask = d['mask']
 
 
 Models = {}

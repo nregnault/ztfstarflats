@@ -195,16 +195,18 @@ def binplot(x, y, nbins=10, robust=False, data=True,
 class SuperpixelizedZTFFocalPlan:
     def __init__(self, resolution):
         self.__resolution = resolution
+        self.xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
+        self.ybins = np.linspace(0., quadrant_height_px, self.__resolution+1)
 
     @property
     def resolution(self):
         return self.__resolution
 
     def superpixelize(self, x, y, ccdid, qid):
-        xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
-        ybins = np.linspace(0., quadrant_height_px, self.__resolution+1)
-        ix = np.digitize(x, xbins, right=True) - 1
-        iy = np.digitize(y, ybins, right=True) - 1
+        # xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
+        # ybins = np.linspace(0., quadrant_height_px, self.__resolution+1)
+        ix = np.digitize(x, self.xbins, right=True) - 1
+        iy = np.digitize(y, self.ybins, right=True) - 1
 
         return self.__resolution**2*(4*(ccdid-1)+qid)+iy*self.__resolution+ix
 
@@ -219,10 +221,12 @@ class SuperpixelizedZTFFocalPlan:
             return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*4*ccdid)
 
     def plot(self, fig, vec, vec_map=None, cmap=None, vlim=None, f=None, cbar_label=None, mask=None):
-        if vec_map is not None:
+        if isinstance(vec_map, dict):
             _vec = np.full([64*self.__resolution**2], np.nan)
             np.put_along_axis(_vec, np.array(list(vec_map.keys())), vec, 0)
             vec = _vec
+        elif hasattr(vec_map, '__iter__'):
+            vec = np.where(vec_map==-1, np.nan, vec[vec_map])
 
         if mask:
             focal_plane_dict = {}
@@ -230,10 +234,6 @@ class SuperpixelizedZTFFocalPlan:
                 focal_plane_dict[ccdid] = {}
                 for qid in range(4):
                     focal_plane_dict[ccdid][qid] = vec[self.vecrange(ccdid, qid)]
-                    # if mask[ccdid][qid]:
-                    #     focal_plane_dict[ccdid][qid] = vec[self.vecrange(ccdid, qid)]
-                    # else:
-                    #     focal_plane_dict[ccdid][qid] = np.full([self.__resolution**2], np.nan)
         else:
             focal_plane_dict = dict([(ccdid, dict([(qid, vec[self.vecrange(ccdid, qid)]) for qid in range(4)])) for ccdid in range(1, 17)])
 
@@ -323,3 +323,22 @@ def make_index_from_array(array):
     m = dict(list(zip(s, list(range(len(s))))))
     indices = np.fromiter((m[e] for e in array), 'int')
     return m, indices
+
+
+def sanitize_data(df, photo_key):
+    measure_count = len(df)
+    print("Removing negative flux")
+    df = df.loc[df[photo_key]>0.]
+    print("Removed {} negative measures".format(measure_count-len(df)))
+    print("Measure count={}".format(len(df)))
+
+    measure_count = len(df)
+    print("Removing out of bound measures")
+    df = df.loc[df['x']>0.]
+    df = df.loc[df['x']<=quadrant_width_px]
+    df = df.loc[df['y']>0.]
+    df = df.loc[df['y']<=quadrant_height_px]
+    print("Removed {} out of bound measures".format(measure_count-len(df)))
+    print("Measure count={}".format(len(df)))
+
+    return df

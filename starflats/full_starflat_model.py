@@ -10,16 +10,16 @@ from utils import SuperpixelizedZTFFocalPlan, plot_ztf_focal_plane, quadrant_wid
 from linearmodels import indic
 
 class FullStarflatModel(ColorStarflatModel):
-    def __init__(self, config_path, dataset_path):
-        super().__init__(config_path, dataset_path)
+    def __init__(self, config, mask):
+        super().__init__(config, mask)
+
+    def load_data(self, dataset_path):
+        super().load_data(dataset_path)
 
         self.dp.add_field('X', get_airmass(np.deg2rad(self.dp.ra), np.deg2rad(self.dp.dec), Time(self.dp.mjd, format='mjd').jd))
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp') + indic(self.dp.dk_index, val=self.dp.col, name='dk') + indic([0]*len(self.dp.nt), val=(self.dp.X-1), name='k')
-        # model.params['dzp'].fix(0, 0.)
-        # model.params['zp'].fix(0, 0.)
-        # model.params['dk'].fix(0, 0.)
         return model
 
     @staticmethod

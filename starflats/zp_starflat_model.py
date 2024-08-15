@@ -11,8 +11,11 @@ from linearmodels import indic
 
 
 class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
-    def __init__(self, config_path, dataset_path):
-        super().__init__(config_path, dataset_path)
+    def __init__(self, config, mask):
+        super().__init__(config, mask)
+
+    def load_data(self, dataset_path):
+        super().load_data(dataset_path)
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp')
@@ -36,7 +39,7 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
     def eq_constraints(self, model, mu=0.1):
         constraints = super().eq_constraints(model)
-        constraints.append([model.params['dk'].indexof(), mu])
+        constraints.append([model.params['zp'].indexof(), mu])
 
         return constraints
 
@@ -57,5 +60,10 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
     def _dump_recap(self):
         return super()._dump_recap()
+
+    # def apply_model(self, x, y, ccdid, qid, mag, **kwords):
+    #     # Measurements are supposed to be already aligned
+    #     return super().apply_model(x, y, ccdid, qid, mag, **kwords)
+
 
 models.register_model(ZPStarflatModel)

@@ -9,13 +9,18 @@ from utils import SuperpixelizedZTFFocalPlan, plot_ztf_focal_plane, quadrant_wid
 from linearmodels import indic
 
 class SimpleStarflatModel(models.StarflatModel):
-    def __init__(self, config_path, dataset_path):
-        super().__init__(config_path, dataset_path)
-
+    def __init__(self, config=None, mask=None):
+        super().__init__(config=config, mask=mask)
         self.superpixels = SuperpixelizedZTFFocalPlan(self.config['zp_resolution'])
+
+    def load_data(self, dataset_path):
+        super().load_data(dataset_path)
+
         self.dp.add_field('dzp', self.superpixels.superpixelize(self.dp.x, self.dp.y, self.dp.ccdid, self.dp.qid))
         self.dp.make_index('dzp')
-        b = np.bincount(self.dp.dzp)
+
+        self.dzp_to_index = -np.ones(64*self.superpixels.resolution**2, dtype=int)
+        np.put_along_axis(self.dzp_to_index, np.array(list(self.dp.dzp_map.keys())), np.array(list(self.dp.dzp_map.values())), axis=0)
 
     def build_model(self):
         model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp')
@@ -34,7 +39,8 @@ class SimpleStarflatModel(models.StarflatModel):
         return 'simple'
 
     def fix_params(self, model):
-        model.params['dzp'].fix(0, 0.)
+        # model.params['dzp'].fix(0, 0.)
+        model.params['dzp'].fix(self.superpixels.vecrange(7, 0).start, 0.)
 
     def eq_constraints(self, model, mu=0.1):
         return [[model.params['dzp'].indexof(), mu]]
@@ -65,7 +71,7 @@ class SimpleStarflatModel(models.StarflatModel):
 
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ without gain substraction - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]", vlim='sigma_clipping')
         plt.savefig(output_path.joinpath("dzp_gain.png"))
         plt.close()
 
@@ -88,6 +94,11 @@ class SimpleStarflatModel(models.StarflatModel):
         #     plt.show()
         #     # plt.savefig(output_path.joinpath("chi2_superpixels.png"))
         #     plt.close()
+
+    def apply_model(self, x, y, ccdid, qid, mag, **kwords):
+        zp_index = self.dzp_to_index[self.superpixels.superpixelize(x, y, ccdid, qid)]
+        return mag - self.fitted_params['dzp'].full[zp_index]
+
 
 
 models.register_model(SimpleStarflatModel)
