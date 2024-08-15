@@ -69,6 +69,8 @@ class StarflatModel:
             print("Removed {} masked measures".format(measure_count-len(df)))
             print("Measure count={}".format(len(df)))
 
+        df = df.loc[df['g']<19.]
+
         # # Remove potential outliers
         # df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
         # # df['col'] = df[photo_color_lhs] - df[photo_color_rhs]
@@ -76,14 +78,16 @@ class StarflatModel:
         #     measure_count = len(df)
         #     df = df.loc[df['G']>10.]
         #     df = df.loc[df['G']<20.5]
-        #     df = df.loc[df['col']<2.5]
-        #     df = df.loc[df['col']>-1.]
         #     print("Removed {} potential outliers".format(measure_count-len(df)))
 
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
 
         df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
+
+        df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
+        df = df.loc[df['col']<0.5]
+        df = df.loc[df['col']>-0.5]
 
         df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
 
