@@ -68,39 +68,52 @@ class StarflatModel:
         if len(df) < measure_count:
             print("Removed {} masked measures".format(measure_count-len(df)))
             print("Measure count={}".format(len(df)))
+            print("")
 
-        df = df.loc[df['g']<19.]
+        if self.__config['max_mag']:
+            print("Filtering faint stars (> {:.2f} mag)".format(self.__config['max_mag']))
+            n = len(df)
+            df = df.loc[df['g']<self.__config['max_mag']]
+            print("Removed {} measures".format(n-len(df)))
+            print("Measure count={}".format(len(df)))
+            print("")
 
-        # # Remove potential outliers
-        # df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
-        # # df['col'] = df[photo_color_lhs] - df[photo_color_rhs]
-        # if photo_color_lhs == 'BP' and photo_color_rhs == 'RP' and photo_ext_cat == 'G':
-        #     measure_count = len(df)
-        #     df = df.loc[df['G']>10.]
-        #     df = df.loc[df['G']<20.5]
-        #     print("Removed {} potential outliers".format(measure_count-len(df)))
+        df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
+
+        if self.__config['max_col']:
+            print("Filtering by star color ({}-{} > {} mag)".format(self.__config['color_lhs'], self.__config['color_rhs'], self.__config['max_col']))
+            n = len(df)
+            df = df.loc[df['col']<self.__config['max_col']]
+            print("Removed {} measures".format(n-len(df)))
+            print("Measure count={}".format(len(df)))
+            print("")
+
+        if self.__config['min_col']:
+            print("Filtering by star color ({}-{} < {} mag)".format(self.__config['color_lhs'], self.__config['color_rhs'], self.__config['min_col']))
+            n = len(df)
+            df = df.loc[df['col']>self.__config['min_col']]
+            print("Removed {} measures".format(n-len(df)))
+            print("Measure count={}".format(len(df)))
+            print("")
 
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
 
         df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
 
-        df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
-        df = df.loc[df['col']<0.5]
-        df = df.loc[df['col']>-0.5]
-
-        df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
-
         df['ext_cat_mag'] = df[photo_ext_cat]
 
 
-        # print("Removing stars that have less than {} measures...".format(5))
-        # gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
-        # gaiaid_mask = (np.bincount(gaiaid_index) < 5)
-        # to_remove_mask = gaiaid_mask[gaiaid_index]
-        # df = df.loc[~to_remove_mask]
-        # print(" Removed {} measures.".format(sum(to_remove_mask)))
+        if self.__config['min_measures']:
+            print("Removing stars that have less than {} measures...".format(self.__config['min_measures']))
+            gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
+            gaiaid_mask = (np.bincount(gaiaid_index) < self.__config['min_measures'])
+            to_remove_mask = gaiaid_mask[gaiaid_index]
+            df = df.loc[~to_remove_mask]
+            print("Removed {} measures".format(sum(to_remove_mask)))
+            print("Measure count={}".format(len(df)))
 
+        # Might not be great to create a dataproxy from the full dataset....
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
         self.dp = DataProxy(df.to_records(), **kwargs)
         self.__dataset_name = dataset_path.stem

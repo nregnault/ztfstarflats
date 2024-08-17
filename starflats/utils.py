@@ -279,6 +279,24 @@ class SuperpixelizedZTFFocalPlan:
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(ScalarMappable(Normalize(vmin=vmin, vmax=vmax), cmap=cmap), cax=cbar_ax, label=cbar_label)
 
+    def vec_to_block(self, vec, vec_map, f=None):
+        if f is None:
+            f = lambda x: x
+        d = {}
+        for ccdid in range(1, 17):
+            ccd = np.hstack([np.vstack([np.flip(np.flip(f(vec[self.vecrange(ccdid, 2)]).reshape(self.__resolution, self.__resolution), axis=1), axis=0),
+                                        np.flip(np.flip(f(vec[self.vecrange(ccdid, 1)]).reshape(self.__resolution, self.__resolution), axis=1), axis=0)]),
+                             np.vstack([np.flip(np.flip(f(vec[self.vecrange(ccdid, 3)]).reshape(self.__resolution, self.__resolution), axis=1), axis=0),
+                                        np.flip(np.flip(f(vec[self.vecrange(ccdid, 0)]).reshape(self.__resolution, self.__resolution), axis=1), axis=0)])])
+            d[ccdid] = ccd
+
+        plane = np.vstack([np.hstack([d[4], d[3], d[2], d[1]]),
+                           np.hstack([d[8], d[7], d[6], d[5]]),
+                           np.hstack([d[12], d[11], d[10], d[9]]),
+                           np.hstack([d[16], d[15], d[14], d[13]])])
+
+        plt.imshow(plane, origin='lower')
+        plt.show()
 
 def plot_ztf_focal_plane(fig, focal_plane_dict, plot_fun, plot_ccdid=False):
     ccds = fig.add_gridspec(4, 4, wspace=0.02, hspace=0.02)
@@ -331,6 +349,7 @@ def sanitize_data(df, photo_key):
     df = df.loc[df[photo_key]>0.]
     print("Removed {} negative measures".format(measure_count-len(df)))
     print("Measure count={}".format(len(df)))
+    print("")
 
     measure_count = len(df)
     print("Removing out of bound measures")
@@ -340,5 +359,6 @@ def sanitize_data(df, photo_key):
     df = df.loc[df['y']<=quadrant_height_px]
     print("Removed {} out of bound measures".format(measure_count-len(df)))
     print("Measure count={}".format(len(df)))
+    print("")
 
     return df
