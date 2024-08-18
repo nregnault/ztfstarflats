@@ -35,6 +35,7 @@ class StarflatModel:
 
     @classmethod
     def from_config(cls, config_path):
+        print("Loading settings from {}".format(config_path))
         with open(config_path, 'r') as f:
             config = load(f, Loader=Loader)
 
@@ -56,7 +57,13 @@ class StarflatModel:
         photo_color_rhs = self.__config['color_rhs']
         photo_ext_cat = self.__config['photometry_ext_cat']
 
+        print("Loading sequence dataset from {}".format(dataset_path))
         df = pd.read_parquet(dataset_path)
+        print("")
+
+        print("Measure count={}".format(len(df)))
+        print("Star count={}".format(len(list(set(df['gaiaid'].tolist())))))
+        print("")
 
         df = sanitize_data(df, self.__config['photometry'])
 
@@ -70,17 +77,17 @@ class StarflatModel:
             print("Measure count={}".format(len(df)))
             print("")
 
-        if self.__config['max_mag']:
-            print("Filtering faint stars (> {:.2f} mag)".format(self.__config['max_mag']))
+        if 'max_mag' in self.__config.keys():
+            print("Filtering faint stars (> {:.1f} mag)".format(self.__config['max_mag']))
             n = len(df)
-            df = df.loc[df['g']<self.__config['max_mag']]
+            df = df.loc[df[photo_ext_cat]<self.__config['max_mag']]
             print("Removed {} measures".format(n-len(df)))
             print("Measure count={}".format(len(df)))
             print("")
 
         df['col'] = (df[photo_color_lhs] - df[photo_color_rhs]) - np.mean(df[photo_color_lhs] - df[photo_color_rhs])
 
-        if self.__config['max_col']:
+        if 'max_col' in self.__config.keys():
             print("Filtering by star color ({}-{} > {} mag)".format(self.__config['color_lhs'], self.__config['color_rhs'], self.__config['max_col']))
             n = len(df)
             df = df.loc[df['col']<self.__config['max_col']]
@@ -88,7 +95,7 @@ class StarflatModel:
             print("Measure count={}".format(len(df)))
             print("")
 
-        if self.__config['min_col']:
+        if 'min_col' in self.__config.keys():
             print("Filtering by star color ({}-{} < {} mag)".format(self.__config['color_lhs'], self.__config['color_rhs'], self.__config['min_col']))
             n = len(df)
             df = df.loc[df['col']>self.__config['min_col']]
@@ -103,8 +110,7 @@ class StarflatModel:
 
         df['ext_cat_mag'] = df[photo_ext_cat]
 
-
-        if self.__config['min_measures']:
+        if 'min_measures' in self.__config.keys():
             print("Removing stars that have less than {} measures...".format(self.__config['min_measures']))
             gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
             gaiaid_mask = (np.bincount(gaiaid_index) < self.__config['min_measures'])
@@ -112,6 +118,8 @@ class StarflatModel:
             df = df.loc[~to_remove_mask]
             print("Removed {} measures".format(sum(to_remove_mask)))
             print("Measure count={}".format(len(df)))
+            print("Star count={}".format(len(list(set(df['gaiaid'].tolist())))))
+            print("")
 
         # Might not be great to create a dataproxy from the full dataset....
         kwargs = dict([(col_name, col_name) for col_name in df.columns])
@@ -138,6 +146,10 @@ class StarflatModel:
     @property
     def wres(self):
         return self.res/self.measure_errors
+
+    @property
+    def chi2(self):
+        return np.sum(self.wres[~self.bads]**2).item()
 
     @property
     def ndof_full(self):
@@ -172,6 +184,9 @@ class StarflatModel:
     def eq_constraints(self):
         return NotImplementedError
 
+    def parameter_count(self):
+        return {'stars': len(self.dp.gaiaid_set)}
+
     def plot(self, output_path):
         wres = self.wres
 
@@ -185,6 +200,7 @@ class StarflatModel:
             rcid_mask = (self.dp.rcid[mask] == rcid)
             plt.plot(self.dp.x[mask][rcid_mask], self.dp.y[mask][rcid_mask], idx2markerstyle[i], label=rcid)
 
+        # Dithering pattern in pixel space
         plt.grid()
         plt.legend()
         plt.axis('equal')
@@ -193,6 +209,7 @@ class StarflatModel:
         plt.savefig(output_path.joinpath("dithering.png"), dpi=300.)
         plt.close()
 
+        # Residual wrt magnitude
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("Residual plot wrt ${}$ magnitude\nModel: {}".format(self.config['photometry_ext_cat'], self.model_math()))
         plt.plot(self.dp.ext_cat_mag[~self.bads], self.res[~self.bads], ',')
@@ -239,6 +256,7 @@ class StarflatModel:
         plt.savefig(output_path.joinpath("pull.png"))
         plt.close()
 
+        # Residual wrt color
         plt.subplots(figsize=(12., 5.))
         plt.suptitle("Residual plot wrt ${}-{}$ magnitude\nModel: {}".format(self.config['color_lhs'], self.config['color_rhs'], self.model_math()))
         plt.plot(self.dp.col[~self.bads], self.res[~self.bads], ',')
@@ -249,7 +267,6 @@ class StarflatModel:
         plt.tight_layout()
         plt.savefig(output_path.joinpath("residuals_color.png"), dpi=300.)
         plt.close()
-
 
         # Chi2 par exposure
         chi2_day = np.bincount(self.dp.mjd_index[~self.bads], weights=self.wres[~self.bads]**2)/np.bincount(self.dp.mjd_index[~self.bads])
@@ -293,6 +310,7 @@ class StarflatModel:
         weights = 1./self.measure_errors
 
         if self.config['eq_constraints']:
+            print("Adding equality constraints")
             constraints = self.eq_constraints(model)
             rows, cols, vals = model.rows.tolist(), model.cols.tolist(), model.vals.tolist()
             for constraint in constraints:
@@ -305,6 +323,10 @@ class StarflatModel:
             y = np.concatenate([y, [0.]*len(constraints)])
             weights = np.concatenate([weights, [1.]*len(constraints)])
 
+        print("Parameter count=({})".format(", ".join(["{}:{}".format(parameter_name, parameter_count) for parameter_name, parameter_count in self.parameter_count().items()])))
+        print("Total parameter count={}".format(np.sum(list(self.parameter_count().values()))))
+        print("")
+        print("Solving model...")
         start_time = time.perf_counter()
         if method == 'cholesky':
             solver = self._solve_cholesky(model, y, weights)
@@ -313,18 +335,18 @@ class StarflatModel:
         else:
             raise NotImplementedError("solve(): {} solve method not implemented!".format(method))
         print("Elapsed time={}s".format(time.perf_counter()-start_time))
+        print("")
 
         res = solver.get_res(y)
         self.fitted_params = solver.model.params
         self.bads = solver.bads[:len(self.dp.mag)]
         self.res = res[:len(self.dp.mag)]
-
         # self.cov = solver.get_cov() # Getting cov matrix leads to crash
         # self.diag_cov = solver.get_diag_cov()
         self.cov = None
         self.diag_cov = None
-        if(self.config['eq_constraints']):
-            self.eq_constraints_res = res[-3:]
+        # if(self.config['eq_constraints']):
+        #     self.eq_constraints_res = res[-3:]
 
     def _solve_cholesky(self, model, y, weights):
         if not self.config['eq_constraints']:
@@ -382,29 +404,37 @@ class StarflatModel:
     def apply_starflat(self, x, y, ccdid, qid, **kwords):
         raise NotImplementedError
 
+    def _dump_result(self):
+        raise NotImplementedError
+
     def dump_result(self, output_path):
+        d = self._dump_result()
+
         with open(output_path, 'wb') as f:
-            pickle.dump({'fitted_params': self.fitted_params,
-                         'bads': self.bads,
-                         'res': self.res,
-                         'cov': self.cov,
-                         'mask': self.mask,
-                         'dzp_to_index': self.dzp_to_index,
-                         'config': self.config}, f)
+            d.update({'fitted_params': self.fitted_params,
+                      'bads': self.bads,
+                      'res': self.res,
+                      'cov': self.cov,
+                      'mask': self.mask,
+                      'dataset_name': self.dataset_name,
+                      'config': self.config})
+            pickle.dump(d, f)
 
     def load_result(self, result_path):
         with open(result_path, 'rb') as f:
             d = pickle.load(f)
 
-        self.fitted_params = d['fitted_params']
-        self.bads = d['bads']
-        self.res = d['res']
-        self.cov = d['cov']
-        self.dzp_to_index = d['dzp_to_index']
-        self.__config = d['config']
+        property_keys = ['config', 'mask', 'dataset_name']
+        [setattr(self, key, d[key]) for key in d.keys() if key not in property_keys]
+        [setattr(self, "_StarflatModel__{}".format(key), d[key]) for key in d.keys() if key in property_keys]
 
-        # self.chi2 = np.sum(self.wres[~self.bads]**2).item()
-        self.__mask = d['mask']
+        # self.fitted_params = d['fitted_params']
+        # self.bads = d['bads']
+        # self.res = d['res']
+        # self.cov = d['cov']
+        # self.dzp_to_index = d['dzp_to_index']
+        # self.__config = d['config']
+        # self.__mask = d['mask']
 
 
 Models = {}

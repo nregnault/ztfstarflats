@@ -43,6 +43,11 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
         return constraints
 
+    def parameter_count(self):
+        d = super().parameter_count()
+        d.update({'zp': len(self.dp.dzp_set)})
+        return d
+
     def plot(self, output_path):
         super().plot(output_path)
 
@@ -59,7 +64,12 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
         plt.close()
 
     def _dump_recap(self):
-        return super()._dump_recap()
+        d = super()._dump_recap()
+        d.update({'zp_count': len(self.dp.mjd_set)})
+        return d
+
+    def _dump_result(self):
+        return super()._dump_result()
 
     # def apply_model(self, x, y, ccdid, qid, mag, **kwords):
     #     # Measurements are supposed to be already aligned

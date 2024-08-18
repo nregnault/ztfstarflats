@@ -47,8 +47,16 @@ class SimpleStarflatModel(models.StarflatModel):
 
     def _dump_recap(self):
         d = super()._dump_recap()
-        d['zp_resolution'] = self.config['zp_resolution']
+        d['dzp'] = self.superpixels.vecsize
+        d['dzp_resolution'] = self.superpixels.resolution
+        d['dzp_parameter'] = len(self.dp.dzp_set)
+        d['dzp_sum'] = np.sum(self.fitted_params['dzp'].full).item()
 
+        return d
+
+    def parameter_count(self):
+        d = super().parameter_count()
+        d.update({'dzp': len(self.dp.dzp_set)})
         return d
 
     def plot(self, output_path):
@@ -56,31 +64,41 @@ class SimpleStarflatModel(models.StarflatModel):
 
         chi2_ndof = np.sum(self.wres[~self.bads]**2)/self.ndof
 
+        # Measurement count per superpixel
         fig, axs = plt.subplots(figsize=(12., 12.))
         plt.suptitle("Measure count per superpixel")
-
         self.superpixels.plot(fig, np.bincount(self.dp.dzp), cbar_label="Measure count")
         plt.savefig(output_path.joinpath("superpixel_count.png"), dpi=300.)
         plt.close()
 
+        # Delta ZP with gain correction
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
         self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("dzp.png"))
         plt.close()
 
+        # Delta ZP plane without gain correction
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ without gain substraction - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]", vlim='sigma_clipping')
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("dzp_gain.png"))
         plt.close()
 
         wres_dzp = np.bincount(self.dp.dzp_index, weights=self.wres**2)/np.bincount(self.dp.dzp_index)
 
+        # Chi2 per superpixel
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("Stacked $\chi^2$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
         self.superpixels.plot(fig, wres_dzp, vec_map=self.dp.dzp_map, vlim='sigma_clipping')
         plt.savefig(output_path.joinpath("chi2_superpixels.png"))
+        plt.close()
+
+        # Outlier count per Delta ZP superpixel
+        fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12))
+        plt.suptitle("Outlier count per superpixel")
+        self.superpixels.plot(fig, np.bincount(self.dp.dzp_index, weights=self.bads), vec_map=self.dzp_to_index, cbar_label="Outlier count")
+        plt.savefig(output_path.joinpath("superpixel_outlier.png"), dpi=300.)
         plt.close()
 
         # for mjd in self.dp.mjd_map.keys():
@@ -98,6 +116,11 @@ class SimpleStarflatModel(models.StarflatModel):
     def apply_model(self, x, y, ccdid, qid, mag, **kwords):
         zp_index = self.dzp_to_index[self.superpixels.superpixelize(x, y, ccdid, qid)]
         return mag - self.fitted_params['dzp'].full[zp_index]
+
+    def _dump_result(self):
+        d = {}
+        d['dzp_to_index'] = self.dzp_to_index
+        return d
 
 
 

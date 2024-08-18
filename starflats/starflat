@@ -52,10 +52,15 @@ def main():
 
     if args.mask_path:
         args.mask_path = args.mask_path.expanduser().resolve()
+        print("Loading mask from {}".format(args.mask_path))
         model.load_mask(args.mask_path)
+    elif args.dataset_path.with_suffix(".mask.yaml").exists():
+        print("Loading mask from {}".format(args.dataset_path.with_suffix(".mask.yaml")))
+        model.load_mask(args.dataset_path.with_suffix(".mask.yaml"))
 
     if args.app:
         model.load_result(args.model_path)
+
         df = pd.read_parquet(args.dataset_path)
         df = sanitize_data(df, model.config['photometry'])
         measure_count = len(df)
@@ -68,32 +73,29 @@ def main():
         df.to_parquet(args.output_path)
         return
 
-        rms_flux = np.sqrt(np.bincount(model.dp.gaiaid_index[~model.bads], weights=model.dp.psfflux[~model.bads]**2)/np.bincount(model.dp.gaiaid_index[~model.bads])-(np.bincount(model.dp.gaiaid_index[~model.bads], weights=model.dp.psfflux[~model.bads])/np.bincount(model.dp.gaiaid_index[~model.bads]))**2)
-        mag_avg = np.bincount(model.dp.gaiaid_index, weights=model.dp.psfflux)/np.bincount(model.dp.gaiaid_index)
-        cat_mag = np.bincount(model.dp.gaiaid_index, weights=model.dp.ext_cat_mag)/np.bincount(model.dp.gaiaid_index)
-        rms_mag = 2.5/np.log(10)*rms_flux/mag_avg
+        # rms_flux = np.sqrt(np.bincount(model.dp.gaiaid_index[~model.bads], weights=model.dp.psfflux[~model.bads]**2)/np.bincount(model.dp.gaiaid_index[~model.bads])-(np.bincount(model.dp.gaiaid_index[~model.bads], weights=model.dp.psfflux[~model.bads])/np.bincount(model.dp.gaiaid_index[~model.bads]))**2)
+        # mag_avg = np.bincount(model.dp.gaiaid_index, weights=model.dp.psfflux)/np.bincount(model.dp.gaiaid_index)
+        # cat_mag = np.bincount(model.dp.gaiaid_index, weights=model.dp.ext_cat_mag)/np.bincount(model.dp.gaiaid_index)
+        # rms_mag = 2.5/np.log(10)*rms_flux/mag_avg
 
-        plt.subplots(nrows=2, ncols=1, figsize=(10., 4.), sharex=True, gridspec_kw={'hspace': 0.})
-        plt.subplot(2, 1, 1)
-        mag_bins, rms_bins, err_bins = binplot(cat_mag, rms_mag, bins=np.linspace(15., 21., 10), robust=True, scale=False)
-        plt.grid()
-        plt.subplot(2, 1, 2)
-        plt.plot(mag_bins, rms_bins)
-        plt.grid()
-        plt.xlabel("$m_G$ [AB mag]")
-        plt.show()
+        # plt.subplots(nrows=2, ncols=1, figsize=(10., 4.), sharex=True, gridspec_kw={'hspace': 0.})
+        # plt.subplot(2, 1, 1)
+        # mag_bins, rms_bins, err_bins = binplot(cat_mag, rms_mag, bins=np.linspace(15., 21., 10), robust=True, scale=False)
+        # plt.grid()
+        # plt.subplot(2, 1, 2)
+        # plt.plot(mag_bins, rms_bins)
+        # plt.grid()
+        # plt.xlabel("$m_G$ [AB mag]")
+        # plt.show()
 
     model.load_data(args.dataset_path)
 
     if args.solve:
-        print("Solving model...")
         model.solve()
+
         print("Saving to {}".format(args.output_path))
         model.dump_result(args.output_path.joinpath("model.pickle"))
-
-    if args.recap:
         dataset_name = args.dataset_path.stem.split("_")[-1]
-        model.load_result(args.output_path.joinpath("model.pickle"))
         model.dump_recap(args.output_path.joinpath("recap_{}.yaml".format(dataset_name)))
 
     if args.plot:

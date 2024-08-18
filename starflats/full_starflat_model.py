@@ -40,6 +40,11 @@ class FullStarflatModel(ColorStarflatModel):
     def eq_constraints(self, model, mu=0.1):
         return super().eq_constraints(model, mu)
 
+    def parameter_count(self):
+        d = super().parameter_count()
+        d.update({'k': 1})
+        return d
+
     def plot(self, output_path):
         super().plot(output_path)
 
@@ -47,6 +52,9 @@ class FullStarflatModel(ColorStarflatModel):
         d = super()._dump_recap()
         d['k'] = self.fitted_params['k'].full[:].item()
         return d
+
+    def _dump_result(self):
+        return super()._dump_result()
 
 
 models.register_model(FullStarflatModel)
