@@ -101,7 +101,6 @@ class SimpleStarflatModel(models.StarflatModel):
         plt.savefig(output_path.joinpath("centered_dzp.png"))
         plt.close()
 
-
         if self.fit_gain:
             gain_plane = SuperpixelizedZTFFocalPlane(1)
 
@@ -109,19 +108,18 @@ class SimpleStarflatModel(models.StarflatModel):
             fig = plt.figure(figsize=(5., 5.))
             plt.suptitle("Gain")
             gain_plane.plot(fig, self.fitted_params['gain'].full, vec_map=self.gain_to_index)
-            plt.savefig("gain.png")
+            plt.savefig(output_path.joinpath("gain.png"))
             plt.close()
 
             # Delta ZP plane with gain
             fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
             plt.suptitle("$\delta ZP(u, v)$ with gain - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-            vec = self.fitted_params['dzp'].full
+            vec = self.fitted_params['dzp'].full.copy()
             for ccdid in range(1, 17):
                 for qid in range(4):
                     if self.mask[ccdid, qid]:
                         vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid)].item()
             self.superpixels.plot(fig, vec, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
-            plt.show()
             plt.savefig(output_path.joinpath("dzp_gain.png"))
             plt.close()
 

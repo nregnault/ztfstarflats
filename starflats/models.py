@@ -200,7 +200,7 @@ class StarflatModel:
         # Plot dithering pattern
         plt.subplots(figsize=(8., 8.))
         plt.suptitle("Dithering pattern - {}\n {}".format(self.config['photometry'], self.dataset_name))
-        mask = (self.dp.gaiaid_index == np.argmax(np.bincount(self.dp.gaiaid_index)))
+        mask = (self.dp.starid_index == np.argmax(np.bincount(self.dp.starid_index)))
         rcids = list(set(self.dp.rcid[mask]))
 
         for i, rcid in enumerate(rcids):
