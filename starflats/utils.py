@@ -192,7 +192,7 @@ def binplot(x, y, nbins=10, robust=False, data=True,
     return xbinned, yplot, yerr
 
 
-class SuperpixelizedZTFFocalPlan:
+class SuperpixelizedZTFFocalPlane:
     def __init__(self, resolution):
         self.__resolution = resolution
         self.xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
@@ -228,21 +228,12 @@ class SuperpixelizedZTFFocalPlan:
         elif hasattr(vec_map, '__iter__'):
             vec = np.where(vec_map==-1, np.nan, vec[vec_map])
 
-        if mask:
-            focal_plane_dict = {}
-            for ccdid in range(1, 17):
-                focal_plane_dict[ccdid] = {}
-                for qid in range(4):
-                    focal_plane_dict[ccdid][qid] = vec[self.vecrange(ccdid, qid)]
-        else:
-            focal_plane_dict = dict([(ccdid, dict([(qid, vec[self.vecrange(ccdid, qid)]) for qid in range(4)])) for ccdid in range(1, 17)])
+        focal_plane_dict = dict([(ccdid, dict([(qid, vec[self.vecrange(ccdid, qid)]) for qid in range(4)])) for ccdid in range(1, 17)])
 
         if f is not None:
             for ccdid in focal_plane_dict.keys():
                 for qid in focal_plane_dict[ccdid].keys():
                     focal_plane_dict[ccdid][qid] = focal_plane_dict[ccdid][qid]-f(focal_plane_dict[ccdid][qid])
-                    # if mask[ccdid][qid]:
-                    #     focal_plane_dict[ccdid][qid] = focal_plane_dict[ccdid][qid]-f(focal_plane_dict[ccdid][qid])
 
         if vlim is None or isinstance(vlim, str):
             values = np.array([[focal_plane_dict[ccdid][qid] for qid in range(4)] for ccdid in range(1, 17)]).flatten()
@@ -280,6 +271,13 @@ class SuperpixelizedZTFFocalPlan:
         fig.colorbar(ScalarMappable(Normalize(vmin=vmin, vmax=vmax), cmap=cmap), cax=cbar_ax, label=cbar_label)
 
     def vec_to_block(self, vec, vec_map, f=None):
+        if isinstance(vec_map, dict):
+            _vec = np.full([64*self.__resolution**2], np.nan)
+            np.put_along_axis(_vec, np.array(list(vec_map.keys())), vec, 0)
+            vec = _vec
+        else:
+            vec = np.where(vec_map==-1, np.nan, vec[vec_map])
+
         if f is None:
             f = lambda x: x
         d = {}
@@ -295,8 +293,7 @@ class SuperpixelizedZTFFocalPlan:
                            np.hstack([d[12], d[11], d[10], d[9]]),
                            np.hstack([d[16], d[15], d[14], d[13]])])
 
-        plt.imshow(plane, origin='lower')
-        plt.show()
+        return plane
 
 def plot_ztf_focal_plane(fig, focal_plane_dict, plot_fun, plot_ccdid=False):
     ccds = fig.add_gridspec(4, 4, wspace=0.02, hspace=0.02)

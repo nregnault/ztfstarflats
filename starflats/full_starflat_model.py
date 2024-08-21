@@ -6,7 +6,7 @@ from astropy.time import Time
 
 import models
 from color_starflat_model import ColorStarflatModel
-from utils import SuperpixelizedZTFFocalPlan, plot_ztf_focal_plane, quadrant_width_px, quadrant_height_px, get_airmass
+from utils import get_airmass
 from linearmodels import indic
 
 class FullStarflatModel(ColorStarflatModel):
@@ -18,9 +18,8 @@ class FullStarflatModel(ColorStarflatModel):
 
         self.dp.add_field('X', get_airmass(np.deg2rad(self.dp.ra), np.deg2rad(self.dp.dec), Time(self.dp.mjd, format='mjd').jd))
 
-    def build_model(self):
-        model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp') + indic(self.dp.dk_index, val=self.dp.col, name='dk') + indic([0]*len(self.dp.nt), val=(self.dp.X-1), name='k')
-        return model
+    def _build_model(self):
+        return super()._build_model() + [indic([0]*len(self.dp.nt), val=(self.dp.X-1), name='k')]
 
     @staticmethod
     def model_desc():
@@ -39,11 +38,6 @@ class FullStarflatModel(ColorStarflatModel):
 
     def eq_constraints(self, model, mu=0.1):
         return super().eq_constraints(model, mu)
-
-    def parameter_count(self):
-        d = super().parameter_count()
-        d.update({'k': 1})
-        return d
 
     def plot(self, output_path):
         super().plot(output_path)

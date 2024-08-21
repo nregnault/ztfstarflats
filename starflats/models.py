@@ -3,8 +3,9 @@
 import pickle
 import time
 import yaml
-
+import pathlib
 from yaml import load, Loader, dump
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -61,8 +62,12 @@ class StarflatModel:
         df = pd.read_parquet(dataset_path)
         print("")
 
+        if 'starid' not in df.columns:
+            print("No \'starid\' column, renaming  \'gaiaid\'")
+            df = df.rename(columns={'gaiaid': 'starid'})
+
         print("Measure count={}".format(len(df)))
-        print("Star count={}".format(len(list(set(df['gaiaid'].tolist())))))
+        print("Star count={}".format(len(list(set(df['starid'].tolist())))))
         print("")
 
         df = sanitize_data(df, self.__config['photometry'])
@@ -106,19 +111,19 @@ class StarflatModel:
         df['mag'] = -2.5*np.log10(df[photo_key])
         df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
 
-        df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid'])
+        df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid']+1)
 
         df['ext_cat_mag'] = df[photo_ext_cat]
 
         if 'min_measures' in self.__config.keys():
             print("Removing stars that have less than {} measures...".format(self.__config['min_measures']))
-            gaiaid_index_map, gaiaid_index = make_index_from_array(df['gaiaid'].to_numpy())
-            gaiaid_mask = (np.bincount(gaiaid_index) < self.__config['min_measures'])
-            to_remove_mask = gaiaid_mask[gaiaid_index]
+            starid_index_map, starid_index = make_index_from_array(df['starid'].to_numpy())
+            starid_mask = (np.bincount(starid_index) < self.__config['min_measures'])
+            to_remove_mask = starid_mask[starid_index]
             df = df.loc[~to_remove_mask]
             print("Removed {} measures".format(sum(to_remove_mask)))
             print("Measure count={}".format(len(df)))
-            print("Star count={}".format(len(list(set(df['gaiaid'].tolist())))))
+            print("Star count={}".format(len(list(set(df['starid'].tolist())))))
             print("")
 
         # Might not be great to create a dataproxy from the full dataset....
@@ -128,8 +133,9 @@ class StarflatModel:
 
         self.dp.make_index('qid')
         self.dp.make_index('ccdid')
+        self.dp.make_index('rcid')
         self.dp.make_index('mjd')
-        self.dp.make_index('gaiaid')
+        self.dp.make_index('starid')
 
     @property
     def config(self):
@@ -163,8 +169,12 @@ class StarflatModel:
     def measure_errors(self):
         return np.sqrt(self.dp.emag**2+self.config['piedestal']**2)
 
-    def build_model(self):
+    def _build_model(self):
         raise NotImplementedError
+
+    def build_model(self):
+        models = self._build_model()
+        return sum(models[1:], start=models[0])
 
     @staticmethod
     def model_desc():
@@ -182,10 +192,7 @@ class StarflatModel:
         raise NotImplementedError
 
     def eq_constraints(self):
-        return NotImplementedError
-
-    def parameter_count(self):
-        return {'stars': len(self.dp.gaiaid_set)}
+        raise NotImplementedError
 
     def plot(self, output_path):
         wres = self.wres
@@ -287,7 +294,7 @@ class StarflatModel:
         d['piedestal'] = self.config['piedestal']
         d['solver'] = self.config['solver']
         d['exposure_count'] = len(self.dp.mjd_map)
-        d['star_count'] = len(self.dp.gaiaid_map)
+        d['star_count'] = len(self.dp.starid_map)
         d['measure_count'] = len(self.dp.nt)
         d['bads_count'] = np.sum(self.bads).item()
         d['chi2'] = self.chi2
@@ -323,9 +330,6 @@ class StarflatModel:
             y = np.concatenate([y, [0.]*len(constraints)])
             weights = np.concatenate([weights, [1.]*len(constraints)])
 
-        print("Parameter count=({})".format(", ".join(["{}:{}".format(parameter_name, parameter_count) for parameter_name, parameter_count in self.parameter_count().items()])))
-        print("Total parameter count={}".format(np.sum(list(self.parameter_count().values()))))
-        print("")
         print("Solving model...")
         start_time = time.perf_counter()
         if method == 'cholesky':
@@ -349,10 +353,16 @@ class StarflatModel:
         #     self.eq_constraints_res = res[-3:]
 
     def _solve_cholesky(self, model, y, weights):
+        print("Using Cholesky method")
+
         if not self.config['eq_constraints']:
             self.fix_params(model)
+
+        print("Parameter count=({})".format(", ".join(["{}:{}".format(param, len(model.params[param].free)) for param in model.params._struct])))
+        print("Total parameter count={}".format(len(model.params.free)))
+
         solver = RobustLinearSolver(model, y, weights=weights)
-        solver.model.params.free = solver.robust_solution(local_param='m')
+        solver.model.params.free = solver.robust_solution(local_param='starid')
         return solver
 
     def _solve_flip_flop(self, model, y, weights):
@@ -377,7 +387,7 @@ class StarflatModel:
             print("Iteration {}".format(i))
             if flip:
                 params_to_flip = flop_fields
-                local_param = 'm'
+                local_param = 'starid'
                 flip = False
             else:
                 params_to_flip = flip_fields
@@ -397,7 +407,7 @@ class StarflatModel:
         self.fix_params(model)
         solver = RobustLinearSolver(model, self.dp.mag, weights=1./self.measure_errors)
         solver.bads = bads
-        model.params.free = solver.robust_solution(local_param='m')
+        model.params.free = solver.robust_solution(local_param='starid')
 
         return solver
 
@@ -421,8 +431,11 @@ class StarflatModel:
             pickle.dump(d, f)
 
     def load_result(self, result_path):
-        with open(result_path, 'rb') as f:
-            d = pickle.load(f)
+        if isinstance(result_path, pathlib.Path) or isinstance(result_path, str):
+            with open(result_path, 'rb') as f:
+                d = pickle.load(f)
+        else:
+            d = result_path
 
         property_keys = ['config', 'mask', 'dataset_name']
         [setattr(self, key, d[key]) for key in d.keys() if key not in property_keys]

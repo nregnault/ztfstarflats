@@ -22,6 +22,9 @@ class FocalPlaneMask:
         m = dict([(ccdid, dict([(qid, a[(ccdid-1)*4+qid]) for qid in range(4)])) for ccdid in range(1, 17)])
         return cls(m)
 
+    def __getitem__(self, idx):
+        return self.mask[idx[0]][idx[1]]
+
     def fill(self, b):
         assert isinstance(b, bool)
         self.mask = {}

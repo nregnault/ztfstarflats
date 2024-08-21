@@ -6,7 +6,6 @@ from astropy.time import Time
 
 import models
 import simple_starflat_model
-from utils import SuperpixelizedZTFFocalPlan, plot_ztf_focal_plane, quadrant_width_px, quadrant_height_px, get_airmass
 from linearmodels import indic
 
 
@@ -17,9 +16,8 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
     def load_data(self, dataset_path):
         super().load_data(dataset_path)
 
-    def build_model(self):
-        model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp')
-        return model
+    def _build_model(self):
+        return super()._build_model() + [indic(self.dp.mjd_index, name='zp')]
 
     @staticmethod
     def model_desc():
@@ -42,11 +40,6 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
         constraints.append([model.params['zp'].indexof(), mu])
 
         return constraints
-
-    def parameter_count(self):
-        d = super().parameter_count()
-        d.update({'zp': len(self.dp.dzp_set)})
-        return d
 
     def plot(self, output_path):
         super().plot(output_path)

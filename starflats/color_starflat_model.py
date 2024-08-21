@@ -7,14 +7,14 @@ import pathlib
 
 import models
 import zp_starflat_model
-from utils import SuperpixelizedZTFFocalPlan, plot_ztf_focal_plane, quadrant_width_px, quadrant_height_px, get_airmass
+from utils import SuperpixelizedZTFFocalPlane, quadrant_width_px, quadrant_height_px, get_airmass
 from linearmodels import indic
 
 
 class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
     def __init__(self, config, mask):
         super().__init__(config, mask)
-        self.color_superpixels = SuperpixelizedZTFFocalPlan(self.config['color_resolution'])
+        self.color_superpixels = SuperpixelizedZTFFocalPlane(self.config['color_resolution'])
 
     def load_data(self, dataset_path):
         super().load_data(dataset_path)
@@ -25,9 +25,8 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
         self.dk_to_index = -np.ones(64*self.color_superpixels.resolution**2, dtype=int)
         np.put_along_axis(self.dk_to_index, np.array(list(self.dp.dk_map.keys())), np.array(list(self.dp.dk_map.values())), axis=0)
 
-    def build_model(self):
-        model = indic(self.dp.gaiaid_index, name='m') + indic(self.dp.dzp_index, name='dzp') + indic(self.dp.mjd_index, name='zp') + indic(self.dp.dk_index, val=self.dp.col, name='dk')
-        return model
+    def _build_model(self):
+        return super()._build_model() + [indic(self.dp.dk_index, val=self.dp.col, name='dk')]
 
     @staticmethod
     def model_desc():
@@ -50,11 +49,6 @@ class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
         constraints.append([model.params['dk'].indexof(), mu])
 
         return constraints
-
-    def parameter_count(self):
-        d = super().parameter_count()
-        d.update({'dk': len(self.dp.dk_set)})
-        return d
 
     def plot(self, output_path):
         super().plot(output_path)
