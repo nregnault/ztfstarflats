@@ -33,7 +33,12 @@ class ZPStarflatModel(simple_starflat_model.SimpleStarflatModel):
 
     def fix_params(self, model):
         super().fix_params(model)
-        model.params['zp'].fix(0, 0.)
+        if self.dp.nt.dtype.names:
+            for sequenceid in self.dp.sequenceid_set:
+                zp_idx = self.dp.mjd_index[self.dp.sequenceid==sequenceid][0]
+                model.params['zp'].fix(zp_idx, 0.)
+        else:
+            model.params['zp'].fix(0, 0.)
 
     def eq_constraints(self, model, mu=0.1):
         constraints = super().eq_constraints(model)

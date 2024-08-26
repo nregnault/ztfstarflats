@@ -137,6 +137,10 @@ class StarflatModel:
         self.dp.make_index('mjd')
         self.dp.make_index('starid')
 
+        if 'sequenceid' in self.dp.nt.dtype.names:
+            print("\'sequenceid\' field found, making an index of it")
+            self.dp.make_index('sequenceid')
+
     @property
     def config(self):
         return self.__config
@@ -361,7 +365,7 @@ class StarflatModel:
         print("Parameter count=({})".format(", ".join(["{}:{}".format(param, len(model.params[param].free)) for param in model.params._struct])))
         print("Total parameter count={}".format(len(model.params.free)))
 
-        solver = RobustLinearSolver(model, y, weights=weights)
+        solver = RobustLinearSolver(model, y, weights=weights, use_long=False)
         solver.model.params.free = solver.robust_solution(local_param='starid')
         return solver
 

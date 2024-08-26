@@ -214,11 +214,17 @@ class SuperpixelizedZTFFocalPlane:
     def vecsize(self):
         return 64*self.__resolution**2
 
-    def vecrange(self, ccdid, qid):
-        if qid in [0, 1, 2]:
-            return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*(4*(ccdid-1)+qid+1))
+    def vecrange(self, ccdid, qid, vec_map=None):
+        if vec_map:
+            if qid in [0, 1, 2]:
+                return slice(vec_map[self.__resolution**2*(4*(ccdid-1)+qid)], vec_map[self.__resolution**2*(4*(ccdid-1)+qid+1)])
+            else:
+                return slice(vec_map[self.__resolution**2*(4*(ccdid-1)+qid)], vec_map[self.__resolution**2*4*ccdid])
         else:
-            return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*4*ccdid)
+            if qid in [0, 1, 2]:
+                return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*(4*(ccdid-1)+qid+1))
+            else:
+                return slice(self.__resolution**2*(4*(ccdid-1)+qid), self.__resolution**2*4*ccdid)
 
     def plot(self, fig, vec, vec_map=None, cmap=None, vlim=None, f=None, cbar_label=None, mask=None):
         if isinstance(vec_map, dict):

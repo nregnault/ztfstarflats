@@ -37,7 +37,6 @@ if __name__ == '__main__':
 
     # dataset_paths = list(args.dataset_path.glob("*2022*.parquet"))
     dataset_paths = list(args.dataset_path.glob("*.parquet"))
-    print(dataset_paths)
     print("Found {} datasets".format(len(dataset_paths)))
 
     if args.generate:
@@ -66,8 +65,8 @@ starflat_all_photometry.sh {dataset_path} {config_path} {output_path}
                    "-o", args.run_path.joinpath("logs/log_{}".format(dataset_name)),
                    "-A", "ztf",
                    "-L", "sps",
-                   "--mem=20G",
-                   "-t", "5-0",
+                   "--mem=30G",
+                   "-t", "2-0",
                    args.run_path.joinpath("batches/{}.sh".format(dataset_name))]
 
             out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, universal_newlines=True)

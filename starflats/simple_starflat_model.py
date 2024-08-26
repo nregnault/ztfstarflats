@@ -50,14 +50,15 @@ class SimpleStarflatModel(models.StarflatModel):
         if self.fit_gain:
             for ccdid in range(1, 17):
                 for qid in range(4):
-                    if qid == 0:
-                        model.params['dzp'].fix(self.superpixels.vecrange(ccdid, qid).stop - 1, 0.)
-                    elif qid == 1:
-                        model.params['dzp'].fix(self.superpixels.vecrange(ccdid, qid).stop - self.superpixels.resolution, 0.)
-                    elif qid == 2:
-                        model.params['dzp'].fix(self.superpixels.vecrange(ccdid, qid).start, 0.)
-                    else:
-                        model.params['dzp'].fix(self.superpixels.vecrange(ccdid, qid).start + self.superpixels.resolution-1, 0.)
+                    if self.mask[ccdid, qid]:
+                        if qid == 0:
+                            model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).stop - 1], 0.)
+                        elif qid == 1:
+                            model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).stop - self.superpixels.resolution], 0.)
+                        elif qid == 2:
+                            model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).start], 0.)
+                        else:
+                            model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).start + self.superpixels.resolution-1], 0.)
             model.params['gain'].fix(0, 0.)
         else:
             model.params['dzp'].fix(self.superpixels.vecrange(7, 0).start, 0.)
@@ -118,7 +119,8 @@ class SimpleStarflatModel(models.StarflatModel):
             for ccdid in range(1, 17):
                 for qid in range(4):
                     if self.mask[ccdid, qid]:
-                        vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid)].item()
+                        #vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid, vec_map=self.dp.dzp_map)] + self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid, vec_map=self.dp.rcid_map)].item()
+                        vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + np.repeat(self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid)], self.superpixels.resolution**2)
             self.superpixels.plot(fig, vec, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
             plt.savefig(output_path.joinpath("dzp_gain.png"))
             plt.close()

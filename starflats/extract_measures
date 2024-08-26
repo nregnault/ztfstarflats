@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
+import sys
 import argparse
 import pathlib
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from astropy.time import Time
 
 from utils import ztffiltercodes, make_index_from_array
-import matplotlib.pyplot as plt
 
-if __name__ == '__main__':
+def main():
     argparser = argparse.ArgumentParser(description="Extract relevant starflat measure fields from measurement datasets.")
     argparser.add_argument('--dataset-path', type=pathlib.Path, required=True, help="Path where all rcid datasets are saved.")
     argparser.add_argument('--output', type=pathlib.Path, required=True, help="Output folder where each sequences get stored.")
@@ -39,26 +38,32 @@ if __name__ == '__main__':
     print("Loading datasets from {}, year {} in band {}".format(args.dataset_path, args.year, filtercode))
     for dataset_path in dataset_paths:
         columns_to_extract = ['gaia_Source', 'psf_x', 'psf_y', 'gaia_RA_ICRS', 'gaia_DE_ICRS', 'psf_flux', 'psf_eflux', 'gaia_Gmag', 'gaia_BPmag', 'gaia_RPmag', 'gaia_e_Gmag', 'gaia_e_BPmag', 'gaia_e_RPmag',
-                            'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing']
+                              'mjd', 'qid', 'ccdid', 'filtercode', 'quadrant', 'seeing', 'ps1_gmag', 'ps1_e_gmag', 'ps1_rmag', 'ps1_e_rmag', 'ps1_imag', 'ps1_e_imag']
         [columns_to_extract.extend(['aper_apfl{}'.format(i), 'aper_eapfl{}'.format(i), 'aper_rad{}'.format(i)]) for i in range(10)]
         df = pd.read_parquet(dataset_path, columns=columns_to_extract)
         df.rename(columns={'gaia_Source': 'gaiaid',
-                        'psf_x': 'x',
-                        'psf_y': 'y',
-                        'gaia_RA_ICRS': 'ra',
-                        'gaia_DE_ICRS': 'dec',
-                        'psf_flux': 'psfflux',
-                        'psf_eflux': 'epsfflux',
-                        'gaia_Gmag': 'G',
-                        'gaia_BPmag': 'BP',
-                        'gaia_RPmag': 'RP',
-                        'gaia_e_Gmag': 'eG',
-                        'gaia_e_RPmag': 'eRP',
-                        'gaia_e_BPmag': 'eBP'}, inplace=True)
+                           'psf_x': 'x',
+                           'psf_y': 'y',
+                           'gaia_RA_ICRS': 'ra',
+                           'gaia_DE_ICRS': 'dec',
+                           'psf_flux': 'psfflux',
+                           'psf_eflux': 'epsfflux',
+                           'gaia_Gmag': 'G',
+                           'gaia_BPmag': 'BP',
+                           'gaia_RPmag': 'RP',
+                           'gaia_e_Gmag': 'eG',
+                           'gaia_e_RPmag': 'eRP',
+                           'gaia_e_BPmag': 'eBP',
+                           'ps1_gmag': 'g',
+                           'ps1_e_gmag': 'eg',
+                           'ps1_rmag': 'r',
+                           'ps1_e_rmag': 'er',
+                           'ps1_imag': 'i',
+                           'ps1_e_imag': 'ei'}, inplace=True)
         [df.rename(columns={'aper_apfl{}'.format(i): 'apfl{}'.format(i), 'aper_eapfl{}'.format(i): 'eapfl{}'.format(i), 'aper_rad{}'.format(i): 'rad{}'.format(i)}, inplace=True) for i in range(10)]
 
         s = len(df)
-        df = df.loc[df['G']<=args.max_g_mag]
+        # df = df.loc[df['G']<=args.max_g_mag]
 
         print("Loading dataset from {} - removed {} measures having Gmag > Gmax - left total={}".format(dataset_path.name, s - len(df), len(df)))
         # TODO: ra, dec in ICRS epoch, need to translate to mjd of current exposures
@@ -68,12 +73,12 @@ if __name__ == '__main__':
     dataset_df = pd.concat(dataset_list, ignore_index=True)
 
     print("{} measures found.".format(len(dataset_df)))
-    print("Removing stars that have less than {} measures...".format(args.min_measure_count))
-    gaiaid_index_map, gaiaid_index = make_index_from_array(dataset_df['gaiaid'].to_numpy())
-    gaiaid_mask = (np.bincount(gaiaid_index) < args.min_measure_count)
-    to_remove_mask = gaiaid_mask[gaiaid_index]
-    dataset_df = dataset_df.loc[~to_remove_mask]
-    print(" Removed {} measures.".format(sum(to_remove_mask)))
+    # print("Removing stars that have less than {} measures...".format(args.min_measure_count))
+    # gaiaid_index_map, gaiaid_index = make_index_from_array(dataset_df['gaiaid'].to_numpy())
+    # gaiaid_mask = (np.bincount(gaiaid_index) < args.min_measure_count)
+    # to_remove_mask = gaiaid_mask[gaiaid_index]
+    # dataset_df = dataset_df.loc[~to_remove_mask]
+    # print(" Removed {} measures.".format(sum(to_remove_mask)))
 
     # Detect starflat nights
     unique_night_mjds = list(set(dataset_df['mjd'].astype(int)))
@@ -84,3 +89,6 @@ if __name__ == '__main__':
         night_mask = (dataset_df['mjd'].astype(int)==unique_night_mjd)
         print("Saving night {} - {} measurements".format(unique_night, sum(night_mask)))
         dataset_df.loc[night_mask].to_parquet(args.output.joinpath("starflat_measures_{}-{}.parquet".format(unique_night, filtercode)))
+
+
+sys.exit(main())
