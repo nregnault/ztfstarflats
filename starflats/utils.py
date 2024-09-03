@@ -217,8 +217,6 @@ class SuperpixelizedZTFFocalPlane:
         return self.__resolution
 
     def superpixelize(self, x, y, ccdid, qid):
-        # xbins = np.linspace(0., quadrant_width_px, self.__resolution+1)
-        # ybins = np.linspace(0., quadrant_height_px, self.__resolution+1)
         ix = np.digitize(x, self.xbins, right=True) - 1
         iy = np.digitize(y, self.ybins, right=True) - 1
 
