@@ -14,6 +14,9 @@ class SimpleStarflatModel(models.StarflatModel):
         self.superpixels = SuperpixelizedZTFFocalPlane(self.config['zp_resolution'])
         self.fit_gain = config.get('fit_gain', False)
 
+        if self.fit_gain:
+            self.gain_plane = SuperpixelizedZTFFocalPlane(1)
+
     def load_data(self, dataset_path):
         super().load_data(dataset_path)
 
@@ -24,13 +27,17 @@ class SimpleStarflatModel(models.StarflatModel):
         np.put_along_axis(self.dzp_to_index, np.array(list(self.dp.dzp_map.keys())), np.array(list(self.dp.dzp_map.values())), axis=0)
 
         if self.fit_gain:
-            self.gain_to_index = -np.ones(64, dtype=int)
-            np.put_along_axis(self.gain_to_index, np.array(list(self.dp.rcid_map.keys())), np.array(list(self.dp.rcid_map.values())), axis=0)
+            self.dp.add_field('gain', self.dp.sequenceid*64+self.dp.rcid)
+            self.dp.make_index('gain')
+
+            self.gain_to_index = -np.ones((self.sequence_count*64), dtype=int).flatten()
+            np.put_along_axis(self.gain_to_index, np.array(list(self.dp.gain_map.keys())), np.array(list(self.dp.gain_map.values())), axis=0)
 
     def _build_model(self):
         models = [indic(self.dp.starid_index, name='starid'), indic(self.dp.dzp_index, name='dzp')]
         if self.fit_gain:
-            models.append(indic(self.dp.rcid_index, name='gain'))
+            # models.append(indic(self.dp.rcid_index, name='gain'))
+            models.append(indic(self.dp.gain_index, name='gain'))
 
         return models
 
@@ -59,7 +66,13 @@ class SimpleStarflatModel(models.StarflatModel):
                             model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).start], 0.)
                         else:
                             model.params['dzp'].fix(self.dp.dzp_map[self.superpixels.vecrange(ccdid, qid).start + self.superpixels.resolution-1], 0.)
-            model.params['gain'].fix(0, 0.)
+            if 'sequenceid' in self.dp.nt.dtype.names:
+                idx = 0
+                for sequenceid in range(self.sequence_count):
+                    model.params['gain'].fix(idx, 0.)
+                    idx = idx + sum(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]!=-1)
+            else:
+                model.params['gain'].fix(0, 0.)
         else:
             model.params['dzp'].fix(self.superpixels.vecrange(7, 0).start, 0.)
 
@@ -98,7 +111,7 @@ class SimpleStarflatModel(models.StarflatModel):
         # Per quadrant median centered Delta ZP
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ (per quadrant median centered) - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', f=np.median, vlim='mad', cbar_label="$\delta ZP$ [mag]")
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', f=np.median, vlim=(-0.02, 0.02), cbar_label="$\delta ZP$ [mag]")
         plt.savefig(output_path.joinpath("centered_dzp.png"))
         plt.close()
 
@@ -106,29 +119,29 @@ class SimpleStarflatModel(models.StarflatModel):
             gain_plane = SuperpixelizedZTFFocalPlane(1)
 
             # Gain distribution
-            fig = plt.figure(figsize=(5., 5.))
-            plt.suptitle("Gain")
-            gain_plane.plot(fig, self.fitted_params['gain'].full, vec_map=self.gain_to_index)
-            plt.savefig(output_path.joinpath("gain.png"))
-            plt.close()
+            s = 0
+            for sequenceid in range(self.sequence_count):
+                fig = plt.figure(figsize=(5., 5.))
+                plt.suptitle("Gain - SequenceID={}".format(sequenceid))
+                vec_map = np.where(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]==-1, -1, self.gain_to_index[64*sequenceid:64*(sequenceid+1)]-s)
+                s = s + 64 - sum(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]==-1)
+                gain_plane.plot(fig, self.fitted_params['gain'].full[len(self.dp.rcid_set)*sequenceid:(len(self.dp.rcid_set))*(sequenceid+1)], vec_map=vec_map)
+                plt.savefig(output_path.joinpath("gain_seq{}.png".format(sequenceid)))
+                plt.close()
 
             # Delta ZP plane with gain
             fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
             plt.suptitle("$\delta ZP(u, v)$ with gain - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-            vec = self.fitted_params['dzp'].full.copy()
-            for ccdid in range(1, 17):
-                for qid in range(4):
-                    if self.mask[ccdid, qid]:
-                        #vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid, vec_map=self.dp.dzp_map)] + self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid, vec_map=self.dp.rcid_map)].item()
-                        vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + np.repeat(self.fitted_params['gain'].full[gain_plane.vecrange(ccdid, qid)], self.superpixels.resolution**2)
-            self.superpixels.plot(fig, vec, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
+            # vec = self.fitted_params['dzp'].full.copy()
+            vec = self.get_gain_dzp_vec()
+            self.superpixels.plot(fig, self.get_gain_dzp_vec(), vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
             plt.savefig(output_path.joinpath("dzp_gain.png"))
             plt.close()
 
         # Raw Delta ZP plane
         fig, axs = plt.subplots(ncols=1, nrows=1, figsize=(12., 12.))
         plt.suptitle("$\delta ZP(u, v)$ - {}\n {} \n {} \n $\chi^2/\mathrm{{ndof}}$={}".format(self.config['photometry'], self.dataset_name, self.model_math(), chi2_ndof))
-        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]")
+        self.superpixels.plot(fig, self.fitted_params['dzp'].full, vec_map=self.dp.dzp_map, cmap='viridis', cbar_label="$\delta ZP$ [mag]", vlim=(-0.02, 0.02))
         plt.savefig(output_path.joinpath("dzp.png"))
         plt.close()
 
@@ -169,6 +182,26 @@ class SimpleStarflatModel(models.StarflatModel):
         d['dzp_to_index'] = self.dzp_to_index
         return d
 
+    def get_gain_dzp_vec(self):
+        if self.sequence_count == 1:
+            return self.fitted_params['dzp'].full + np.repeat(self.fitted_params['gain'].full, self.superpixels.resolution**2)
+        else:
+            vec = np.where(self.dzp_to_index==-1, np.nan, self.fitted_params['dzp'].full[self.dzp_to_index])
 
+            for ccdid in range(1, 17):
+                for qid in range(4):
+                    if self.mask[ccdid, qid]:
+                        gains = []
+                        for sequenceid in range(self.sequence_count):
+                            gain_to_index = self.gain_to_index[64*sequenceid:64*(sequenceid+1)]
+                            print(self.gain_to_index[self.gain_plane.vecrange(ccdid, qid)])
+                            if gain_to_index[self.gain_plane.vecrange(ccdid, qid)] != -1:
+                                gains.append(self.fitted_params['gain'].full[gain_to_index[self.gain_plane.vecrange(ccdid, qid)]])
+
+                        print(gains)
+                        gain = np.mean(gains)
+                        vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + gain*np.ones(self.superpixels.resolution**2)
+
+            return np.delete(vec, np.where(self.dzp_to_index==-1))
 
 models.register_model(SimpleStarflatModel)

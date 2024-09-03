@@ -58,6 +58,20 @@ def radectoaltaz(ra, dec, lat, lon, jd):
     return az, a, st, H
 
 
+def get_airmass_derivatives(ra, dec, obs_date, lat=33.356*np.pi/180., lon=-116.863*np.pi/180.):
+    gmst = erfa.gmst06(obs_date, 0, obs_date, 0)
+    st = np.mod(gmst + lon, 2 * np.pi)  # Calculate the Sidereal Time
+    H = (st - ra)  # Calculate the Hour Angle
+    H = np.mod(H, 2 * np.pi)
+
+    A = np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(H)
+    X = 1/A
+    dXdra = -np.cos(lat)*np.cos(dec)*np.sin(H)/A**2
+    dXddec = -(np.sin(lon)*np.cos(dec)-np.cos(lat)*np.sin(dec)*np.cos(H))/A**2
+
+    return X, (dXdra, dXddec)
+
+
 def get_airmass(ra, dec, obs_date, lat=33.356*np.pi/180, lon=-116.863*np.pi/180):
     """
     Calculate the airmass for a celestial object.
@@ -276,12 +290,12 @@ class SuperpixelizedZTFFocalPlane:
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(ScalarMappable(Normalize(vmin=vmin, vmax=vmax), cmap=cmap), cax=cbar_ax, label=cbar_label)
 
-    def vec_to_block(self, vec, vec_map, f=None):
+    def vec_to_block(self, vec, vec_map=None, f=None):
         if isinstance(vec_map, dict):
             _vec = np.full([64*self.__resolution**2], np.nan)
             np.put_along_axis(_vec, np.array(list(vec_map.keys())), vec, 0)
             vec = _vec
-        else:
+        elif hasattr(vec_map, '__iter__'):
             vec = np.where(vec_map==-1, np.nan, vec[vec_map])
 
         if f is None:

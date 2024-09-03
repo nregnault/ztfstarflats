@@ -10,7 +10,7 @@ from utils import get_airmass
 from linearmodels import indic
 
 class FullStarflatModel(ColorStarflatModel):
-    def __init__(self, config, mask):
+    def __init__(self, config=None, mask=None):
         super().__init__(config, mask)
 
     def load_data(self, dataset_path):
@@ -34,6 +34,8 @@ class FullStarflatModel(ColorStarflatModel):
         return 'full'
 
     def fix_params(self, model):
+        if 'fix_k' in self.config.keys():
+            model.params['k'].fix(0, self.config['fix_k'])
         super().fix_params(model)
 
     def eq_constraints(self, model, mu=0.1):

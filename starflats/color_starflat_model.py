@@ -12,7 +12,7 @@ from linearmodels import indic
 
 
 class ColorStarflatModel(zp_starflat_model.ZPStarflatModel):
-    def __init__(self, config, mask):
+    def __init__(self, config=None, mask=None):
         super().__init__(config, mask)
         self.color_superpixels = SuperpixelizedZTFFocalPlane(self.config['color_resolution'])
 

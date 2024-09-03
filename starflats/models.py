@@ -63,8 +63,12 @@ class StarflatModel:
         print("")
 
         if 'starid' not in df.columns:
-            print("No \'starid\' column, renaming  \'gaiaid\'")
+            print("No \'starid\' field, renaming  \'gaiaid\'")
             df = df.rename(columns={'gaiaid': 'starid'})
+
+        if 'sequenceid' not in df.columns:
+            print("No \'sequenceid\' field, creating one")
+            df = df.assign(sequenceid=0)
 
         print("Measure count={}".format(len(df)))
         print("Star count={}".format(len(list(set(df['starid'].tolist())))))
@@ -137,9 +141,8 @@ class StarflatModel:
         self.dp.make_index('mjd')
         self.dp.make_index('starid')
 
-        if 'sequenceid' in self.dp.nt.dtype.names:
-            print("\'sequenceid\' field found, making an index of it")
-            self.dp.make_index('sequenceid')
+        self.dp.make_index('sequenceid')
+        self.sequence_count = len(self.dp.sequenceid_set)
 
     @property
     def config(self):
