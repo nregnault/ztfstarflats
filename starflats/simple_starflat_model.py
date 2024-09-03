@@ -194,11 +194,9 @@ class SimpleStarflatModel(models.StarflatModel):
                         gains = []
                         for sequenceid in range(self.sequence_count):
                             gain_to_index = self.gain_to_index[64*sequenceid:64*(sequenceid+1)]
-                            print(self.gain_to_index[self.gain_plane.vecrange(ccdid, qid)])
                             if gain_to_index[self.gain_plane.vecrange(ccdid, qid)] != -1:
                                 gains.append(self.fitted_params['gain'].full[gain_to_index[self.gain_plane.vecrange(ccdid, qid)]])
 
-                        print(gains)
                         gain = np.mean(gains)
                         vec[self.superpixels.vecrange(ccdid, qid)] = vec[self.superpixels.vecrange(ccdid, qid)] + gain*np.ones(self.superpixels.resolution**2)
 
