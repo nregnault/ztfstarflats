@@ -118,13 +118,15 @@ class SimpleStarflatModel(models.StarflatModel):
             gain_plane = SuperpixelizedZTFFocalPlane(1)
 
             # Gain distribution
-            s = 0
+            idx_start = 0
             for sequenceid in range(self.sequence_count):
                 fig = plt.figure(figsize=(5., 5.))
                 plt.suptitle("Gain - SequenceID={}".format(sequenceid))
-                vec_map = np.where(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]==-1, -1, self.gain_to_index[64*sequenceid:64*(sequenceid+1)]-s)
-                s = s + 64 - sum(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]==-1)
-                gain_plane.plot(fig, self.fitted_params['gain'].full[len(self.dp.rcid_set)*sequenceid:(len(self.dp.rcid_set))*(sequenceid+1)], vec_map=vec_map)
+                vec_map = np.where(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]==-1, -1, self.gain_to_index[64*sequenceid:64*(sequenceid+1)]-idx_start)
+                idx_end = idx_start + sum(self.gain_to_index[64*sequenceid:64*(sequenceid+1)]!=-1)
+                #gain_plane.plot(fig, self.fitted_params['gain'].full[len(self.dp.rcid_set)*sequenceid:(len(self.dp.rcid_set))*(sequenceid+1)], vec_map=vec_map)
+                gain_plane.plot(fig, self.fitted_params['gain'].full[idx_start:idx_end], vec_map=vec_map)
+                idx_start = idx_end
                 plt.savefig(output_path.joinpath("gain_seq{}.png".format(sequenceid)))
                 plt.close()
 
