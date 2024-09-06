@@ -434,7 +434,8 @@ class StarflatModel:
                       'cov': self.cov,
                       'mask': self.mask,
                       'dataset_name': self.dataset_name,
-                      'config': self.config})
+                      'config': self.config,
+                      'sequence_count': self.sequence_count})
             pickle.dump(d, f)
 
     def load_result(self, result_path):
@@ -447,14 +448,6 @@ class StarflatModel:
         property_keys = ['config', 'mask', 'dataset_name']
         [setattr(self, key, d[key]) for key in d.keys() if key not in property_keys]
         [setattr(self, "_StarflatModel__{}".format(key), d[key]) for key in d.keys() if key in property_keys]
-
-        # self.fitted_params = d['fitted_params']
-        # self.bads = d['bads']
-        # self.res = d['res']
-        # self.cov = d['cov']
-        # self.dzp_to_index = d['dzp_to_index']
-        # self.__config = d['config']
-        # self.__mask = d['mask']
 
 
 Models = {}

@@ -36,7 +36,6 @@ class SimpleStarflatModel(models.StarflatModel):
     def _build_model(self):
         models = [indic(self.dp.starid_index, name='starid'), indic(self.dp.dzp_index, name='dzp')]
         if self.fit_gain:
-            # models.append(indic(self.dp.rcid_index, name='gain'))
             models.append(indic(self.dp.gain_index, name='gain'))
 
         return models
@@ -180,6 +179,7 @@ class SimpleStarflatModel(models.StarflatModel):
     def _dump_result(self):
         d = {}
         d['dzp_to_index'] = self.dzp_to_index
+        d['gain_to_index'] = self.gain_to_index
         return d
 
     def get_gain_dzp_vec(self):
