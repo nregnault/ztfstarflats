@@ -24,6 +24,7 @@ photometry_choice_to_key = {'psf': 'psfflux'}
 photometry_choice_to_key.update(dict([('apfl{}'.format(i), 'apfl{}'.format(i)) for i in range(10)]))
 photometry_error_choice_to_key = {'psf': 'epsfflux'}
 photometry_error_choice_to_key.update(dict([('apfl{}'.format(i), 'eapfl{}'.format(i)) for i in range(10)]))
+ext_cat_mal_to_label = {''}
 
 
 class StarflatModel:
@@ -86,10 +87,26 @@ class StarflatModel:
             print("Measure count={}".format(len(df)))
             print("")
 
+        df['mag'] = -2.5*np.log10(df[photo_key])
+        df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
+        df['snr'] = df[photo_key]/df[photo_err_key]
+
+        df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid']+1)
+
+        df['ext_cat_mag'] = df[photo_ext_cat]
+
         if 'max_mag' in self.__config.keys():
             print("Filtering faint stars (> {:.1f} mag)".format(self.__config['max_mag']))
             n = len(df)
             df = df.loc[df[photo_ext_cat]<self.__config['max_mag']]
+            print("Removed {} measures".format(n-len(df)))
+            print("Measure count={}".format(len(df)))
+            print("")
+
+        if 'min_snr' in self.__config.keys():
+            print("Filtering faint stars (< {:.1f} S/R)".format(self.__config['min_snr']))
+            n = len(df)
+            df = df.loc[df['snr']>self.__config['min_snr']]
             print("Removed {} measures".format(n-len(df)))
             print("Measure count={}".format(len(df)))
             print("")
@@ -111,13 +128,6 @@ class StarflatModel:
             print("Removed {} measures".format(n-len(df)))
             print("Measure count={}".format(len(df)))
             print("")
-
-        df['mag'] = -2.5*np.log10(df[photo_key])
-        df['emag'] = 1.08*df[photo_err_key]/df[photo_key]
-
-        df['rcid'] = ccdid_qid_to_rcid(df['ccdid'], df['qid']+1)
-
-        df['ext_cat_mag'] = df[photo_ext_cat]
 
         if 'min_measures' in self.__config.keys():
             print("Removing stars that have less than {} measures...".format(self.__config['min_measures']))
@@ -170,7 +180,8 @@ class StarflatModel:
 
     @property
     def ndof(self):
-        return len(self.dp) - len(self.fitted_params.full) - sum(self.bads)
+        #return len(self.dp) - len(self.fitted_params.full) - sum(self.bads)
+        return len(self.dp) - len(self.fitted_params.free) - sum(self.bads)
 
     @property
     def measure_errors(self):
@@ -204,6 +215,12 @@ class StarflatModel:
     def plot(self, output_path):
         wres = self.wres
 
+        # SNR as a function of external catalog magnitude
+        plt.figure(figsize=(10., 4.), layout='constrained')
+        plt.plot(dp.ext_cat_mag, dp.snr, ',')
+        plt.xlabel("$m$")
+
+        #
         # Plot dithering pattern
         plt.subplots(figsize=(8., 8.))
         plt.suptitle("Dithering pattern - {}\n {}".format(self.config['photometry'], self.dataset_name))
